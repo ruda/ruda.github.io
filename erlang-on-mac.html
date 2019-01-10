@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+    <title>Running Erlang/OTP on macOS</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="image" content="favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.ico">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Erlang is a functional programming language. In this article, you will learn how to install and use the latest version of Erlang/OTP on your Macintosh.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+    <section>
+  <h1>Running Erlang on macOS</h1>
+<h3>About Erlang &amp; OTP</h3>
+
+<p><a href="http://www.erlang.org">Erlang</a> is a functional programming language used to build scalable real-time systems with high availability. <a href="http://learnyousomeerlang.com/what-is-otp">OTP</a> is a set of libraries and the foundation of these systems. In this article, you will learn how to install and use the latest version of Erlang/OTP R16B on Mavericks, Mountain Lion, Lion or Snow Leopard.</p>
+
+<h3>How to Install</h3>
+
+
+<p><a href="http://rudix.org/">Rudix</a> provides Erlang pre-compiled packages for Mavericks, Mountain Lion, Lion and Snow Leopard.
+The page you will going to access is <a href="http://rudix.org/packages/erlang.html">rudix.org/packages/erlang.html</a>.</p>
+
+<img src="images/erlanginstall.png">
+
+<p>After the download, double click the package and follow the installation instructions. Note that Erlang/OTP is big and requires (after installed) about 300MB of disk space.</p>
+
+<h4>Default installation path</h4>
+<p>Erlang/OTP will be installed under <code>/usr/local/</code> and the full path for the Erlang/OTP interpreter will be <code>/usr/local/bin/erl</code>, but you don’t need to type the full path every time you want to call Erlang, it’s OK just to type <code>erl</code> on the Terminal to get the interpreter.</p>
+
+<p>Important files:</p>
+
+<pre>/usr/local/bin/erl
+/usr/local/lib/erlang/
+/usr/local/share/doc/erlang/README.md
+</pre>
+
+<h4>Security note for Mountain Lion and Mavericks</h4>
+
+<p>On Mountain Lion and Mavericks things are a bit hard, you will probably get <strong>“erlang-R15B02-0.pkg” can’t be opened because it is from an unidentified developer</strong>. This means that the package was not registered with Apple – but you can choose to trust Rudix developers (I’m the author) and install anyway.</p>
+
+<img src="images/erlangcantbeopened.png">
+
+<p>Here is how to bypass once your security settings:</p>
+
+<ol>
+  <li>Press the <code>Control</code> key and click the package.</li>
+  <li>Choose <em>Open</em> from the pop-up menu.</li>
+  <li>Click <em>Open</em> button.</li>
+</ol>
+
+<p>And now follow the installation instructions.</p>
+
+<h3>Testing Erlang/OTP</h3>
+<p>Test if your installation is OK by printing “Hello World!”.</p>
+
+<pre>erl
+Erlang R15B02 (erts-5.9.2) [source] [64-bit] [smp:2:2] [async-threads:0] [hipe] [kernel-poll:false]
+
+Eshell V5.9.2  (abort with ^G)
+1&gt; io:fwrite("Hello World!").
+Hello World!ok
+</pre>
+
+<p>Type <code>Control+G</code>, <code>q</code> and <code>Return</code> to exit. There’s a command <code>halt().</code> with the same effect.</p>
+
+    </section>
+  </body>
+</html>

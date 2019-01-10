@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+  <title>Python, Bytecode &amp; Otimização</title>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Rudá S. T. de  Moura">
+  <meta name="description" content="O que está por trás da compilação de código da linguagem Python em sua forma de byte-code.">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+  <section>
+  <h1>Python, Bytecode &amp; Otimização</h1>
+
+<p>A linguagem Python funciona através da compilação e interpretação de <em>bytecode</em> em uma máquina virtual Python (Python Virtual Machine ou apenas VM neste artigo). Esta VM é baseada em uma máquina de pilha, as operações dos bytecodes (os <em>opcodes</em>) envolvem a manipulação (push/empurra e pop/retira) de elementos nessa pilha.</p>
+
+<p>O CPython não é o único Python existente, é possível encontrar outras implementações de Python, como <a href="http://www.jython.org/">Jython</a>, <a href="http://www.stackless.com/">Stackless Python</a> ou <a href="http://codespeak.net/pypy/dist/pypy/doc/">PyPy</a> e estes podem utilizar mecanismos diferente de interpretação na VM.</p>
+
+<p>Por exemplo, algumas implementações de VM Python utilizam registradores, ao invés da manipulação direta de pilha.</p>
+
+<p>Os <em>bytecodes</em> Python são a forma mais de baixo-nível que o código fonte em Python pode ser traduzido. Para saber quais são eles, pode-se utilizar o módulo <code>opcode</code>. O módulo <code>dis</code> permite reconstruir o nome das instruções a partir dos bytecodes.</p>
+
+<p>Por exemplo, para trecho em Python</p>
+
+<pre>def ex1():
+    return 2011
+</pre>
+
+<p>este é compilado no seguinte bytecode</p>
+
+<pre>&gt;&gt;&gt; import dis
+&gt;&gt;&gt; dis.dis(ex1)
+  2           0 LOAD_CONST               1 (2011)
+              3 RETURN_VALUE
+</pre>
+
+<p>O bytecode <code>LOAD_CONST</code> <em>value</em> tem como efeito empurrar a constante <em>value</em> (2011 neste caso) para o topo da pilha. Já o bytecode <code>RETURN_VALUE</code> retorna o valor do topo da pilha à função que fez a chamada.</p>
+
+<p>Em linhas gerais, é dessa forma que os bytecodes do interpretador Python funcionam e são interpretados.</p>
+
+<h2>Otimização</h2>
+
+<p>Para uma função que retorna a soma de 2000, 10 e 1 assim definida:</p>
+
+<pre>def ex2():
+    return 2000 + 10 + 1
+</pre>
+
+<p>o interpretador Python 2.4 não faz otimizações no bytecode, do tipo <em>pré-calcular um valor constante</em>, portanto, o bytecode gerado na versão 2.4 é:</p>
+
+<pre>2           0 LOAD_CONST               1 (2000)
+            3 LOAD_CONST               2 (10)
+            6 BINARY_ADD          
+            7 LOAD_CONST               3 (1)
+           10 BINARY_ADD          
+           11 RETURN_VALUE
+</pre>
+
+<p>Ou seja, um valor constante é sempre calculado com os vários bytecodes, em cada chamada de função. Mas nas versões posteriores de Python estes já possuem (alguma) otimização de bytecode, e o resultado é mais inteligente.</p>
+
+<p>No interpretador Python 2.6:</p>
+
+<pre>2           0 LOAD_CONST               5 (2011)
+            3 RETURN_VALUE
+</pre>
+
+<p>o resultado foi previamente calculado e guardado como uma constante, ao invés de ser sempre calculado via instruções de bytecode, como faz o Python 2.4.</p>
+
+<h2>Sugestão de Otimização</h2>
+
+<p>É comum guardar o resultado de uma função em uma variável antes de retornar o valor, por exemplo:</p>
+
+<pre>def ex3():
+    res = 2000 + 10 + 1
+    return res
+</pre>
+
+<p>O bytecode gerado na versão 2.6 do Python é:</p>
+
+<pre>2           0 LOAD_CONST               5 (2011)
+            3 STORE_FAST               0 (res)
+
+3           6 LOAD_FAST                0 (res)
+            9 RETURN_VALUE
+</pre>
+
+<p>O otimizador poderia perceber esse tipo de construção e gerar uma versão otimizada (que respeite a semântica do código), pois a variável <code>res</code> tem um escopo local e não tem efeito colateral e pode ser removida sem dano a interpretação.</p>
+
+<p>O bytecode otimizado poderia ser então:</p>
+
+<pre>2           0 LOAD_CONST               5 (2011)
+            9 RETURN_VALUE
+</pre>
+
+<p>semelhante a construção em Python do exemplo <em>ex2</em>.</p>
+
+<p>Mas qual seria o ganho e impacto dessa modificação? É perceptível para muitas repetições, conforme mostra o resultado do uso de <code>timeit</code>, módulo para pequenos <em>benchmarks</em> de trechos de Pyhton.</p>
+
+<pre>&gt;&gt;&gt; print timeit.timeit(ex3)
+0.365698814392
+
+&gt;&gt;&gt; print timeit.timeit(ex2)
+0.325710058212
+</pre>
+
+<p>O uso de <code>STORE_FAST</code> e <code>LOAD_FAST</code> (no exemplo <em>ex3</em>) para guardar e ler variáveis causou um impacto nas repetições do <code>timeit</code> de mais de 10%.</p>
+
+<h2>Conclusão</h2>
+
+<p>Conforme foi demostrado em um exemplo simples no Python versão 2.6, há ainda algumas brechas de otimização.  Ou pelo menos existe alguma razão para continuar a estudar que tipo de otimizações já consagradas (chamadas de <em>peephole</em>) podem ser aplicadas ao interpretador Python.</p>
+
+<p>O Skip Montanaro fez um artigo em 1998 comentado técnicas de otimização. O artigo é <a href="http://legacy.python.org/workshops/1998-11/proceedings/papers/montanaro/montanaro.html">A Peephole Optimizer for Python</a>.</p>
+
+<p>Para quem deseja manipular diretamente os bytecodes em Python ou visualizar melhor o código em bytecode, recomendo olhar o módulo <a href="http://wiki.python.org/moin/ByteplayDoc">byteplay</a>.</p>
+    </section>
+  </body>
+</html>

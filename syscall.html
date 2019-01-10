@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+    <title>Chamadas de Sistema do macOS</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Rudá S. T. de Moura">
+    <meta name="description" content="Chamadas de sistema no macOS.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+<h1>Chamadas de Sistema do macOS</h1>
+
+<h2>Introdução</h2>
+<p>Este artigo tem como propósito explicar como se pode fazer uma chamada de sistema (<em>syscall</em>) do macOS, através de linguagem de máquina (Intel i386). Uma chamada de sistema é o mecanismo padrão para obter recursos e funcionalidades básicas do sistema operacional, como por exemplo, ler e escrever dados em um descritor de arquivos.</p>
+
+<p>Os exemplos desses artigos foram testados em um MacBook (Core Duo) e um MacbookPro (Core 2 Duo) rodando macOS versão 10.6.7.</p>
+
+<h2>Mecanismo</h2>
+<p>O macOS segue o estilo de <a href="http://www.int80h.org/bsdasm/">chamadas de sistema do FreeBSD</a>, de forma que os parâmetros são postos na pilha, o número da syscall é gravado no registrador EAX e então, chama-se a instrução <code>int $0x80</code>.</p>
+
+<p>O valor de retorno da syscall ou <em>status</em> está contida no registrador EAX e deve-se restaurar a pilha ao seu estado original a chamada.</p>
+
+<p>É adequado chamar <code>int $0x80</code> indiretamente através de uma subrotina, em vez de usar diretamente a instrução. O motivo é por questão de alinhamento de pilha. Faremos uso então de uma subrotina de nome <code>_syscall</code>, assim definida:</p>
+
+<pre>_syscall:
+        int $0x80
+        ret
+</pre>
+
+<p>O próximo passo é conhecer quais são as chamadas de sistema disponíveis (os valores decimais) e parâmetros esperados. Estas chamadas são definidas em um arquivo de template do componente XNU, de nome <a href="http://www.opensource.apple.com/source/xnu/xnu-1504.9.37/bsd/kern/syscalls.master">syscalls.master</a>.</p>
+
+<p>Vamos fazer uso das chamadas de nome <code>exit</code>, <code>write</code> e <code>sync</code>, que possuem as seguintes assinaturas:</p>
+
+<pre>1 AUE_EXIT ALL { void exit(int rval); }
+4 AUE_NULL ALL { user_ssize_t write(
+	int fd, user_addr_t cbuf, user_size_t nbyte); }
+36 AUE_SYNC ALL { int sync(void); } 
+</pre>
+
+<h2 id="efetuar-chamada">Efetuar chamada</h2>
+<p>O exemplo abaixo é o fragmento de uma chamada de sistema para <code>sync</code>, que avisa ao sistema operacional para esvaziar/sincronizar qualquer buffer que esteja em memória para o disco. Esta syscall não aceita parâmetros e não retorna nenhuma informação de execução. </p>
+
+<pre>	.text
+_syscall:
+	int $0x80
+	ret
+
+	.globl start
+start:
+	movl $36, %eax		# sync = 36
+	call _syscall		# sync()
+</pre>
+
+<p><a href="http://code.google.com/p/ruda/source/browse/syscall/sync.s">sync.s</a></p>
+
+<p>Nota: diferentemente dos programas em C, programas em código de máquina possuem como ponto de entrada o símbolo <code>start</code>.</p>
+
+<h2 id="retorno-de-status">Retorno de status</h2>
+<p>Exemplo simples de uma chamada de sistema que retorna imediatamente ao shell do usuário o valor de status 42, o número mágico da resposta do sentido da vida (e tudo mais). O valor de retorno (rval) deve ser empilhado como um parâmetro.</p>
+
+<pre>        .text
+_syscall:
+        int $0x80
+        ret
+
+        .globl start
+start:
+        pushl $42               # rval = 42
+        movl $1,%eax            # exit = 1
+        call _syscall           # exit(42)
+</pre>
+
+<p><a href="http://code.google.com/p/ruda/source/browse/syscall/retval.s">retval.s</a></p>
+
+<p>Para transformar este fonte em um arquivo executável, faz-se:</p>
+
+<pre>$ as -arch i386 retval.s -o retval.o
+$ ld retval.o -o retval
+</pre>
+
+<p>E o resultado após a execução é o status 42 para o shell, que pode ser obtido com a variável do shell <code>$?</code>.</p>
+
+<pre>$ ./retval
+$ echo $?
+42
+</pre>
+
+<h2>Hello World</h2>
+<p>Para um exemplo mais complexo, vejamos um programa que escreve a mensagem <em>Hello World!</em> na saída padrão (STDOUT) e retorna ao shell o valor 0. Os parâmetros são empilhados seguindo a ordem da direita para a esquerda na assinatura da chamada do sistema.</p>
+
+<pre>	.text
+_syscall:
+        int $0x80
+        ret
+
+        .globl start
+start:
+        pushl len               # nbyte = len
+        pushl $msg              # cbuf = msg
+        pushl $1                # fd = STDOUT = 1
+        movl $4,%eax            # write = 4
+        call _syscall           # write(fd=1,cbuf=&amp;msg,nbyte=len)
+        addl $12,%esp           # restore stack (3 * 4 = 12)
+        pushl $0
+        movl $1,%eax
+        call _syscall		# exit(0)
+
+        .data
+msg:
+        .ascii "Hello World!\n"
+len:
+        .long . - msg
+</pre>
+
+<p><a href="http://code.google.com/p/ruda/source/browse/syscall/hello.s">hello.s</a></p>
+
+<p>Para gerar o programa, faz-se:</p>
+
+<pre>$ <strong>as -arch i386 hello.s -o hello.o</strong>
+$ <strong>ld hello.o -o hello</strong>
+</pre>
+
+<p>O resultado pode ser observado como segue:</p>
+
+<pre>$ <strong>./hello</strong> 
+Hello World!
+$ <strong>echo $?</strong>
+0
+</pre>
+
+    </section>
+  </body>
+</html>

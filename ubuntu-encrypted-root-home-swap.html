@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ubuntu, Full encrypted system root, home, swap</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Ubuntu - Full encrypted system root, home, swap.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+<h1>Full encrypted system: root, home, swap</h1>
+
+<p>This is the way I did to get an Ubuntu 5.10 (Breezy) with full encrypted file system: root (/), home and swap. Since Ubuntu installer does not support yet this option, this process concerns, first, installing Ubuntu on a temporary partition and then, inside that instalation, preparing all the encrypted partitions for the OS. The old root which I used in the beginning is turnt into a swap partition.</p>
+
+<p>This fully encrypted filesystem method employs dm-crypt, linux kernel's devmapper and cryptography. The default algorithm is AES (aes-cbc-plain) with 256bits key. Mark that I am not a connoceur on the subject or even a crypto freak, I just can say that this worked for me.</p>
+
+
+<h2>Part 1: Ubuntu installation</h2>
+
+<p>Install Ubuntu with server profile with the following initial partitioning scheme:</p>
+<pre>
+/dev/hda1 /boot 100 MB ext3
+/dev/hda2 / 512 MB ext3 
+</pre>
+<p>Mark that 512 MB is really the shortest size you can set for a server type of installation. A complete Ubuntu installation requires at least 2.4 GB. Make your choice now. In addition, I created two more spaces to hold my future encrypted root and /home partitions, so as the following:</p>
+<pre>
+/dev/hda3 future / 10GB
+/dev/hda4 future /home 30GB 
+</pre>
+<p>Set these partitions in the installer option for filesystem as "do not use the partition". Note that it is not absolutely necessary to have an exclusive /home partition, so this is optional since you can have only one partition for a whole encrypted system. Just ignores the alert about not having a swap partition and keep walking.</p>
+
+
+<h2>Part 2: Cryptography software installation</h2>
+
+<p>Configures your apt to use all the optional repositories which come with Ubuntu. This is done by modifying /etc/apt/sources.list, uncommenting all the “deb” repositories. Since you are on a terminal with no gedit or something like that, you will need a pure text editor such as Vi. If you know how to use it, don't care for the following explanation for begginers: to edit text files on a terminal using the Vi command, follow this example:</p>
+<pre>
+# vi /etc/apt/sources.list 
+</pre>
+<p>Press “i” to enter in the INSERT mode, make the alterations, press ESC to enter the COMMAND mode and then press SHIFT+zz (ZZ) to save and quit.</p>
+
+<p>Just install the following additional packages: crypsetup 1.0.1, hashalot 0.3, initrd-tools 1.78 e cramfsprogs 1.1 with the command:</p>
+<pre>
+# apt-get install cryptsetup hashalot initrd-tools cramfsprogs
+</pre>
+<p>Important: initrd-tools must be updated to 1.78 version, because the original one that comes with Ubuntu has a severe bug which makes it unusable.</p>
+
+
+<h2>Part 3: Creating the encrypted system</h2>
+
+<p>Now it is time to create the cryptography devices. First, root: choose a trustworthy password, so that you will not end with a weak security implementation. Do not even use your personal login password. Observe that it is hard to change this password later (you would need to re-encrypt the full system again) and this is not explained in this article. The password for /home can be more weak, because it will be stored encrypted inside the file /etc/keys/home (remember that / is being fully encrypted). This is necessary to avoid that /home password would be asked at every boot in order to be mounted.</p>
+<pre>
+# cryptsetup -y create root /dev/hda3
+# sha256 > /etc/keys/home
+# cryptsetup -d /etc/keys/home create home /dev/hda4 
+</pre>
+<p>The password for root will be asked twice, but the one for /home will be asked only one time and it does not provide confirmation! The partitions with support for cryptography will be available at /dev/mapper/. Now create the filesystem. I prefer the XFS filesystem (this is the one for high performance boxes created by Silicom Graphics, with no undelete policies and 64bit technology. Also there are not tools for windows which can be used to mount a xfs system – but who cares since now we are going to be encrypted!) You can use any filesystem supported by Ubuntu and the one everyone use is ext3, but that's a matter of taste.</p>
+<pre>
+# mkfs -t xfs /dev/mapper/root
+# mkfs -t xfs /dev/mapper/home 
+</pre>
+<p>Now mount the new partitions to /mnt and copy the old root to the new one at /mnt. This will be a perfect copy, preserving data, symbolic links and everything.</p>
+<pre>
+# mount /dev/mapper/root /mnt
+# mkdir /mnt/home
+# mount /dev/mapper/home /mnt/home
+# cp -axv / /mnt 
+</pre>
+<p>The copy process took two minutes and a half for a server profile and sixteen for a complete installation. Mount /dev inside /mnt/dev to get access to the devices.</p>
+<pre>
+# mount --bind /dev /mnt/dev 
+</pre>
+
+<h2>Part 4: Adjusts inside chroot</h2>
+
+<p>Enter the encrypted system by using the chroot command and mount /boot, /proc and /sys:</p>
+<pre>
+# chroot /mnt
+# mount /boot
+# mount /proc
+# mount /sys 
+</pre>
+<p>This step must be done in order to fix a bug in Ubuntu, but do not ask me why...</p>
+<pre>
+# ln -sf /lib/libdevmapper.so.1.01 /lib/libdevmapper.so.1.00 
+</pre>
+<p>Edit /etc/crypttab and add the following lines:</p>
+<pre>
+root /dev/hda3
+home /dev/hda4 /etc/keys/home 
+</pre>
+<p>Edit /etc/fstab in order to change root to the new mounting point at /dev/mapper/root and add a line for /home. I did it this way:</p>
+<pre>
+/dev/mapper/root / xfs defaults 0 1
+/dev/mapper/home /home xfs defaults 0 2 
+</pre>
+<p>Edit /etc/kernel-img.conf and add the following line:</p>
+<pre>
+ramdisk = /usr/sbin/mkinitrd 
+</pre>
+<p>Edit /boot/grub/menu.lst, search for kopt and change this line to:</p>
+<pre>
+# kopt=root=/dev/mapper/root devfs=mount ro 
+</pre>
+<p>Note that the initial # should NOT be removed!</p>
+
+<p>Asks it to reconfigure kernel so that it obtains a new file for grub and a new initrd image able to support cryptography.</p>
+<pre>
+# dpkg-reconfigure linux-image-2.6.12-9-386 
+</pre>
+<p>This command takes into consideration that the installed kernel is the original one from the installation, but if it is NOT the case, substitute it properly – for example, 686 instead of 386, or any other updated version.</p>
+
+
+<h2>Part 5: Finishing</h2>
+
+<p>Unmount all chroot file systems, quit chroot and reboot:</p>
+<pre>
+# umount -a
+# exit
+# reboot 
+</pre>
+<p>If everything worked fine, your system will ask for the password in order to mount /root and then the boot process will continue. If you type a wrong password the system will not output any alert and will fail drastically, probably with a Kernel Panic.</p>
+
+
+<h2>Part 6: Encrypted Swap</h2>
+
+<p>This process is like the other we done for /home, but the only difference is that the password will be different for every boot, since it will be read from /dev/random.</p>
+<pre>
+# cryptsetup create swap /dev/hda2 
+</pre>
+<p>Type any **** as password, since it will not be used by the user.</p>
+
+<p>Edit /etc/crypttab and add the line for swap:</p>
+<pre>
+swap /dev/hda2 /dev/random swap 
+</pre>
+<p>Edit /etc/fstab and add the file for swap:</p>
+<pre>
+/dev/mapper/swap none swap sw 0 0 
+</pre>
+<p>To enable swap immediately:</p>
+<pre>
+# cryptsetup remove swap
+# /etc/init.d/cryptdisks start
+# swapon -a 
+</pre>
+<p>From this moment your whole filesystem is encrypted. In order to turn your server instalation into a default and complete one, just do it:</p>
+<pre>
+# apt-get install ubuntu-desktop 
+</pre>
+<p>The following sources were checked for writing this article: crypsetup(8), crypttab(5).</p>
+
+<footer>
+  Translation from Portuguese to English by <a href="mailto:heitorcapovilla@hotmail.com">Heitor Capovilla</a>.<br>Originally from <a href="http://ubuntuforums.org/archive/index.php/t-120091.html">ubuntuforums.org/archive/index.php/t-120091.html</a>.
+</footer>
+    </section>
+  </body>
+</html>

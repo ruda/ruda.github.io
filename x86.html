@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Assembly x86</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Assembly de x86 em Macintosh.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+<h1>Assembly de x86 em Macintosh</h1>
+
+<h2>Introdução</h2>
+
+<p>Este artigo tem como objetivo ensinar a linguagem de máquina ou de montagem (<em>assembly</em>) da arquitetura Intel x86/i386/IA-32, a partir de exemplos de programas em C, traduzidos para a linguagem de montagem. Nos exemplos apresentados, utilizou-se o compilador GCC 4.2.1 em um MacBook Intel com Mac OS X 10.6.4.</p>
+
+<p>O presente artigo foi inspirado no Apêndice A do livro <em>Computer Organization and Design: the Hardware/Software Interface. 2ª edição</em>. David A. Patterson e John L. Hennessy.</p>
+
+<h2>Arquitetura</h2>
+
+<p>O Intel x86 é uma arquitetura CISC de 32 bits. Os registradores de uso geral (todos de 32 bits) são EAX, EBX, ECX, EDX, ESI e EDI. O apontador ou contador de instruções é o EIP, os registradores ESP e EBP gerenciam a pilha de dados. O registrador EFLAGS é uma coleção de sinalizadores de status e controle</p>
+
+<p>O Intel x86 possui ainda registradores de 16 bits para segmentos de memória CS, DS, SS, ES, FS, GS. Registradores para ponto flutuante ST0–ST7 (32 bits), vetores SIMD (Single Instruction, Multiple Data) MM0–MM7 (64 bits) e XMM0-XMM7 (128 bits).</p>
+
+<p>O Mac OS X segue o modelo ILP32, na qual inteiros longos (long int) e ponteiros (void*) são de 32 bits. O compilador GCC utiliza a convenção da AT&amp;T, as instruções encontram-se na ordem <code>instrução origem, destino</code> (guarde bem isso). Nos manuais da Intel a ordem é invertida para <code>instrução destino, origem</code>.</p>
+
+<p>Utiliza-se o sufixo <em>l</em> (long word ou double word), como em <code>pushl EAX</code>, para instruções que operam com valores de 32 bits, o sufixo <em>w</em> (word) corresponde a valores de 16 bits e sufixo <em>b</em> (byte) para valores de 8 bits. Quando não for especificado um sufixo, assume-se valores de 32 bits para a operação.</p>
+
+<h2 id="ABI">Convenção de Chamadas (ABI)</h2>
+
+<p>Antes de entender o efeito das instruções x86 é pertinente conhecer os princípios básicos que regem as chamadas entre subrotinas e retorno de valores, denominado em inglês de <em>Application Binary Interface</em> (ABI).</p>
+
+<h3>Frame de chamada</h3>
+
+<p>O registrador ESP (<em>Stack Pointer</em>) aponta para o limite atual (topo) da pilha de subrotinas. O topo da pilha está em um endereço alto de memória (digamos, em <code>0xbffffa50</code>) e <em>cresce para baixo</em>. Empilhar um inteiro significa subtrair 4 bytes de ESP e depois mover conteúdo para a posição de memória que ESP aponta.</p>
+
+<img src="images/x86-abi.png" title="Pilha &amp; ABI" align="right" alt="ABI">
+
+<p>O registrador EBP (<em>Frame Pointer</em>) contém a base atual da pilha (por exemplo, <code>0xbffffa58</code>). A região delimitada por EBP e ESP é uma área de rascunho para variáveis locais e temporáris da subrotina, registradores que devem ser salvos e algum preenchimento (padding). Um <em>frame de chamada</em> contém ainda uma área de linkagem (o EIP salvo) para o retorno a instrução seguinte de quem chamou e a base do frame anterior (o EBP salvo).</p>
+
+<h3>Parâmetros da subrotina</h3>
+
+<p>A manipulação de valores dentro da pilha se faz através do registrador EBP, pois o registrador ESP não permite acesso indexado. Quando uma subrotina (<em>caller</em>) chama uma outra subrotina, os parâmetros são inseridos na pilha e o primeiro parâmetro encontra-se em <code>8(%ebp)</code>, o segundo parâmetro em <code>12(%ebp)</code>, a regra geral é <code>4<em>n</em>+8(%ebp)</code> para os <em>n</em> parâmetros inteiros da subrotina.</p>
+
+<h3>Variáveis locais</h3>
+
+<p>As variáveis locais são inseridas na pilha seguindo a ordem de sua declaração, e estão disponíveis através de índices negativos de EBP, pois fazem parte do frame da subrotina que foi chamada (<em>callee</em>). O endereço indicado por -12(%ebp) contém a primeira variável local declarada na subrotina e -16(%ebp) a segunda declaração, a forma geral é <code>-4n-12(%ebp)</code> para as  <em>n</em> variáveis inteiras declaradas na subrotina.</p>
+
+<h3>Retorno de valores</h3>
+
+<p>Se o valor de retorno for um inteiro ou um ponteiro, este é posto no registrador EAX, para valores de ponto flutuante o retorno estará contido no registrador ST0. Outros tipos de dados utilizam outras convenções, verifique na seção de referências aonde obter mais informações.</p>
+
+<h3>Alinhamento da pilha</h3>
+
+<p>Como requisito de quem efetua uma chamada de subrotina para as funções do Mac OS X, deve-se obrigatoriamente deixar a pilha alinhada em 16 bytes, que é o tamanho do maior tipo de dados SIMD. Este alinhamento é uma características do Macintosh Intel para otimização de chamadas.</p>
+
+<p>Quando não se alinha a pilha, o sintoma característico é a ocorrência de falha de segmentação (<em>segmentation fault</em>). Através do depurador GDB ou do Crash Reporter, é possível identificar a presença do símbolo <code>misaligned_stack_error_</code> sinalizando o erro de alinhamento na pilha.</p>
+<pre>
+Thread 0 Crashed:  Dispatch queue: com.apple.main-thread
+0   libSystem.B.dylib             	0x984bd0f0 misaligned_stack_error_ + 0
+1   sync                          	0x00001f7d main + 11
+2   sync                          	0x00001f69 start + 53
+</pre>
+
+<h2>Prólogo e Epílogo de Subrotinas</h2>
+
+<p>Os comandos do Unix <code>true</code> e <code>false</code> retornam ao <em>shell</em> do usuário uma condição de sucesso, para o comando true (valor 0) ou então de falha, para o comando false (valor 1). A partir dos fontes de   <code>true.c</code> e <code>false.c</code>, traduzidos para o código de montagem, poderemos entender como se faz a entrada de subrotina (o <em>prólogo</em>) e a saída de subrotina (o <em>epílogo</em>) com o retorno de um valor inteiro.</p>
+
+<p>O programa montador (<em>assembler</em>) traduz o código fonte da máquina com extensão <code>.s</code> para o código objeto binário com extensão <code>.o</code> ou diretamente em um programa executável no formato <em>Mach-O</em>. No Mac OS X, o assembler é o próprio GCC, que conduz internamente o utilitário <code>as</code>.</p> 
+
+<p>Vamos instruir o GCC a gerar apenas o código de montagem dos programas em C.</p>
+<pre>
+$ <strong>gcc -m32 -S true.c</strong>
+$ <strong>gcc -m32 -S false.c</strong>
+</pre>
+
+<table>
+  <caption>Código em C e de montagem para true e false</caption>
+  <tr><th>true</th><th>false</th></tr>
+<tr><td><pre>
+<strong>int</strong> main(<strong>void</strong>)
+{
+  <strong>return</strong> 0;
+}
+</pre></td>
+<td><pre>
+<strong>int</strong> main(<strong>void</strong>)
+{
+  <strong>return</strong> 1;
+}
+</pre></td></tr>
+
+<tr><td>
+<pre>
+	<strong><b>.text</b></strong>
+<strong><b>.globl</b></strong> _main
+_main:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	$0, %eax
+	leave
+	ret
+	<strong>.subsections_via_symbols</strong>
+</pre></td>
+<td><pre>
+	<strong><b>.text</b></strong>
+<strong><b>.globl</b></strong> _main
+_main:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	$1, %eax
+	leave
+	ret
+	<strong>.subsections_via_symbols</strong>
+</pre></td></tr>
+</table>
+
+<h3>Diretrizes do montador</h3>
+
+<p>Os símbolos <code>.text</code>, <code>.globl</code>, <code>.subsections_via_symbols</code> são <em>diretrizes</em> que vão instruir o montador a tomar uma determinada ação ou comportamento. Estes símbolos são <em>pseudo-instruções</em> e na realidade não fazem parte do conjunto de instruções do x86.</p>
+
+<dl>
+	<dt><code>.text</code></dt>
+	<dd>O conteúdo que segue é código de montagem para ser traduzido. O termo <em>texto</em> (<em>text</em>) neste contexto é utilizado para designar código puro de máquina.</dd>
+	<dt><code>.globl _main</code></dt>
+	<dd>Informa que o símbolo <code>_main</code> é declarado como global e portanto visível a subrotinas externas. O símbolo <code>main</code> em C transforma-se em <code>_main</code> para o código de máquina.</dd>
+	<dt><code>.subsections_via_symbols</code></dt>
+	<dd>Instrui ao montador que partes de código não utilizados por outros procedimentos podem ser excluídas. É seguro ignorar esta diretriz para o propósito do artigo.</dd>
+</dl>
+
+<h3>Interpretação do código de montagem</h3>
+
+<img src="images/x86-prologo-epilogo.png" title="Prólogo e epílogo" align="right" alt="Prólogo e epílogo">
+
+<p>Vejamos agora as ações que as instruções x86 do código de true e false realizam.</p>
+
+<dl>
+<dt><code>_main:</code></dt>
+<dd>Um nome seguido de dois pontos é um rótulo (<em>label</em>) e referencia uma posição em memória. Um rótulo <code>global</code> é visível externamente.</dd>
+
+<dt><code>pushl %ebp</code></dt>
+<dd>Guarda a base do frame de quem fez a chamada (o <em>frame</em> anterior) na pilha.</dd>
+
+<dt><code>movl %esp, %ebp</code></dt>
+<dd>Move a base do frame para o topo da pilha. Neste ponto do código realizamos o <em>prólogo</em> da subrotina.</dd>
+
+<dt><code>subl $8, %esp</code></dt>
+<dd>Reserva espaço na pilha.</dd>
+
+<dt><code>movl $0, %eax</code> ou <code>movl $1, %eax</code></dt>
+<dd>Carrega a constante 0 (ou 1 para o false) no registrador EAX. Este é o valor de retorno da subrotina <code>main()</code> e consequentemente, ao sistema operacional.</dd>
+
+<dt><code>leave</code></dt>
+<dd>Volta o topo da pilha para a base do frame para descarta-lo. Restaura a base do frame da subrotina que fez a chamada.</dd>
+
+<dt><code>ret</code></dt>
+<dd>Restaura o endereço de retorno da subrotina que fez a chamada e continua a execução neste endereço.</dd>
+</dl>
+
+<p>As instruções <code>leave</code> e <code>ret</code> correspondem ao <em>epílogo</em> da subrotina, observe que a instrução <code>leave</code> tem o mesmo efeito que:</p>
+<dl>
+  <dt><code>movl %ebp, %esp</code></dt>
+  <dd>Volta o topo da pilha para a base, descartando o frame.</dd>
+  <dt><code>popl %ebp</code></dt>
+  <dd>Desempilha a base do frame anterior.</dd>
+</dl>
+
+<h3>Gerando o código objeto</h3>
+
+<p>A partir do código de montagem de <code>true.s</code>, podemos gerar um objeto binário x86 no arquivo <code>true.o</code>, ou então compilar diretamente para o arquivo executável <code>true</code>. O código em binário pode ser visualizado em hexadecimal utilizando-se o comando <code>otool</code>.</p>
+
+<table>
+<tr><td><pre>
+$ <strong>gcc -m32 -c true.s</strong>
+$ <strong>otool -t true.o</strong>
+true.o:
+(__TEXT,__text) section
+00000000 55 89 e5 83 ec 08 b8 <em>00</em> 00 00 00 c9 c3
+</pre></td>
+<td><pre>
+$ <strong>gcc -m32 -c false.s</strong>
+$ <strong>otool -t false.o</strong>
+false.o:
+(__TEXT,__text) section
+00000000 55 89 e5 83 ec 08 b8 <em>01</em> 00 00 00 c9 c3
+</pre></td></tr>
+</table>
+
+<p>Por curiosidade, um programa executável possui código adicional ou “de cola” além do que está contido no arquivo de objeto, este código (o <code>start</code>) é responsável por iniciar e finalizar o programa através de <code>main()</code>. O formato dos arquivos executáveis no Mac OS X é chamado de Mach-O.</p>
+
+<h3>Código objeto remontado</h3>
+
+<p>O processo inverso da montagem, isto é, a partir do objeto binário reconstruir de volta as instruções de máquina, é denominado de remontagem (<em>disassembly)</em>. No Mac OS X, o utilitário <code>otool</code> é capaz de realizar esta tarefa, para a remontagem do código objeto de true e false faz-se:</p>
+<table>
+<tr><td><pre>
+$ <strong>otool -tv true.o</strong>
+(__TEXT,__text) section
+_main:
+00000000	pushl	%ebp
+00000001	movl	%esp,%ebp
+00000003	subl	$0x08,%esp
+00000006	movl	$0x00000000,%eax
+0000000b	leave
+0000000c	ret
+</pre></td>
+<td><pre>
+$ <strong>otool -tv false.o</strong>
+(__TEXT,__text) section
+_main:
+00000000	pushl	%ebp
+00000001	movl	%esp,%ebp
+00000003	subl	$0x08,%esp
+00000006	movl	$0x00000001,%eax
+0000000b	leave
+0000000c	ret
+</pre></td></tr>
+</table>
+
+<p>Note que o símbolo global <code>_main</code> aponta para o endereço <code>0</code> e as constantes estão todas escritas em hexadecimal. O código objeto pode ser realocado para qualquer posição de memória, conforme desejar o programa de linkedição <code>ld</code> reescrevendo esse endereço.</p>
+
+<h2>Variáveis Locais &amp; Estrutura de Controle</h2>
+
+<p>Apresentamos o código em C para uma função que calcula o somatório dos <em>n</em> primeiros inteiros. O objetivo deste exemplo é ilustrar, em linguagem de montagem, o uso  de variáveis locais e laços de repetição com condição.</p>
+
+<table>
+<caption>Soma dos <em>n</em> primeiros inteiros</caption>
+<tr><th>somatorio.c</th><th>somatorio.s</th></tr>
+<tr><td><pre>
+<strong>int</strong> somatorio(<strong>int</strong> n)
+{
+  <strong>int</strong> soma = 0;
+  <strong>int</strong> i;
+
+  <strong>for</strong> (i = 0; i &lt; n; i++)
+    soma = soma + i;
+
+  <strong>return</strong> soma;
+}
+</pre></td>
+<td><pre>
+	<strong><b>.text</b></strong>
+<strong><b>.globl</b></strong> _somatorio
+_somatorio:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$24, %esp
+	movl	$0, -12(%ebp)
+	movl	$0, -16(%ebp)
+	jmp	L2
+L3:
+	movl	-16(%ebp), %eax
+	addl	%eax, -12(%ebp)
+	incl	-16(%ebp)
+L2:
+	movl	-16(%ebp), %eax
+	cmpl	8(%ebp), %eax
+	jl	L3
+	movl	-12(%ebp), %eax
+	leave
+	ret
+	<strong>.subsections_via_symbols</strong>
+
+</pre></td></tr>
+</table>
+
+<p>Em uma visão de alto nível, o trecho antes de L3 trata de iniciar as variáveis locais, em L2 temos a parte que avalia se o laço <em>for</em> deve continuar (<code>i &lt; n</code>) ou sair da subrotina, entre L2 e L3 temos o efeito do laço em si (a soma) e também a parte que incrementa o laço (<code>i++</code>).</p>
+
+<p>Em detalhes, temos que:</p>
+
+<img src="images/x86-somatorio.png" align="right" alt="Função somatório">
+
+<dl>
+	<dt><code>pushl</code> e <code>movl</code></dt>
+		<dd>Prólogo da subrotina.</dd>
+	<dt><code>subl	$24, %esp</code></dt>
+		<dd>Abre espaço na pilha.</dd>
+	<dt><code>movl	$0, -12(%ebp)</code></dt>
+		<dd>Atribui a variável local <em>soma</em> o valor 0.</dd>
+	<dt><code>movl	$0, -16(%ebp)</code></dt>
+	<dd>Atribui a variável local <em>i</em> o valor 0.</dd>
+	<dt><code>jmp	L2</code></dt>
+		<dd>Salto incondicional para o rótulo L2.</dd>
+	<dt><code>L3: movl	-16(%ebp), %eax</code></dt>
+		<dd>Guarda em EAX o valor atual de <em>i</em>.</dd>
+	<dt><code>addl	%eax, -12(%ebp)</code></dt>
+		<dd>Faz soma = soma + i.</dd>
+	<dt><code>incl	(%eax)</code></dt>
+		<dd>Incrementa <em>i</em>.</dd>
+	<dt><code>L2: movl	-16(%ebp), %eax</code></dt>
+		<dd>Guarda em EAX o valor atual de <em>i</em></dd>
+	<dt><code>cmpl	8(%ebp), %eax</code></dt>
+		<dd>Compara o parâmetro <em>n</em> armazenado na pilha com o valor corrente de <em>i</em> (EAX).</dd>
+	<dt><code>jl	L3</code></dt>
+		<dd>Se for menor o resultado (i &lt; n), salte para o rótulo L3.</dd>
+	<dt><code>movl	-12(%ebp), %eax</code></dt>
+		<dd>Guarda o resultado da soma em EAX como valor de retorno. </dd>
+	<dt><code>leave</code> e <code>ret</code></dt>
+	<dd>Epílogo da subrotina.</dd>
+</dl>
+	
+<p>A instrução de comparação <code>cmpl A, B</code> modifica adequadamente as flags CF, OF, SF, ZF, AF do registrador EFLAGS conforme os argumentos A e B.</p>
+
+<table>
+<caption>Organização da pilha em somatorio()</caption>
+<tr><th>Memória</th><th>Informação</th></tr>
+<tr><td>EBP+8</td><td>Parâmetro <em>n</em></td></tr>
+<tr><td>EBP+4</td><td>EIP salvo</td></tr>
+<tr><td>EBP</td><td>EBP salvo</td></tr>
+<tr><td>EBP-4</td><td>?</td></tr>
+<tr><td>EBP-8</td><td>?</td></tr>
+<tr><td>EBP-12</td><td>Variável <em>soma</em></td></tr>
+<tr><td>EBP-16</td><td>Variável <em>i</em></td></tr>
+<tr><td>EBP-20</td><td>?</td></tr>
+<tr><td>EBP-24 (= ESP)</td><td>Topo</td></tr>
+</table>
+
+<h2>Chamada de Subrotina</h2>
+
+<p>O comando do Unix <em>sync</em> força todos os <em>caches</em> do sistema operacional a serem gravados em disco. Este comando chama a função de biblioteca <code>sync()</code>, que por sua vez realiza uma chamada de sistema de mesmo nome. O fonte em C deste utilitário, nos permitir demonstrar como é feita a chama de uma subrotina externa. O código é simples, pois a função de biblioteca <em>sync()</em> não admite parâmetros e nem mesmo retorna um valor.</p>
+
+<img src="images/x86-sync.png" title="Fluxograma de sync" align="right" alt="Programa sync">
+
+<table>
+<caption>Implementação de sync</caption>
+<tr>
+	<th>sync.c</th><th>sync.s</th></tr>
+<tr><td><pre>
+#include &lt;unistd.h&gt;
+
+<strong>int</strong> main(<strong>void</strong>)
+{
+  sync();
+  <strong>return</strong> 0;
+}
+</pre></td>
+<td><pre>
+        <strong><b>.text</b></strong>
+<strong><b>.globl</b></strong> _main
+_main:
+        pushl   %ebp
+        movl    %esp, %ebp
+        subl    $8, %esp
+        call    _sync
+        movl    $0, %eax
+        leave
+        ret
+        <strong>.subsections_via_symbols</strong>
+</pre></td></tr>
+</table>
+
+<p>Uma chamada externa de subrotina é realizada através da instrução <code>call _sync</code>. Antes de transferir o controle de execução para o endereço do símbolo  externo <code>_sync</code>, guarda-se na pilha o endereço de retorno (o EIP) da instrução que segue a chamada, neste caso o endereço de <code>movl    $0, %eax</code>.</p>
+
+<p>Desmontando o código objeto de <em>sync.o</em>, obtemos:</p>
+<table>
+<tr><td><pre>
+sync.o:
+(__TEXT,__text) section
+00000000 55 89 e5 83 ec 08 e8 f5 ff ff ff b8 00 00 00 00 
+00000010 c9 c3 
+</pre></td></tr>
+<tr><td><pre>
+sync.o:
+(__TEXT,__text) section
+_main:
+00000000	pushl	%ebp
+00000001	movl	%esp,%ebp
+00000003	subl	$0x08,%esp
+00000006	calll	0x100000000
+0000000b	movl	$0x00000000,%eax
+00000010	leave
+00000011	ret
+</pre></td></tr>
+</table>
+
+<p>O controle de execução da instrução <code>call</code> não é transferido para o endereço <code>0x100000000</code>, é tarefa do <em>linkeditor</em>  rescrever este endereço para o local verdadeiro em memória na qual o código objeto de <code>_sync</code> estará previamente carregado. Isto é feito durante a carga do programa para execução.</p>
+
+<p>No Mac OS X o código de <code>_sync</code> está presente na biblioteca  <code>libSystem.dylib</code>, que é equivalente as bibliotecas libc e a libm de outros sistemas.</p>
+	
+<pre>
+$ <strong>otool -arch i386 -tV -p _sync /usr/lib/libSystem.dylib</strong>
+</pre>
+<pre>
+/usr/lib/libSystem.dylib:
+(__TEXT,__text) section
+_sync:
+00097540        movl    $0x00000024,%eax
+00097545        calll   __sysenter_trap
+0009754a        jae     0x0009755a
+0009754c        calll   0x00097551
+00097551        popl    %edx
+00097552        movl    0x0011036f(%edx),%edx
+00097558        jmp     *%edx
+0009755a        ret
+</pre>
+
+<p>Para a chamada de subrotinas com argumentos, os parâmetros são postos diretamente na pilha, conforme descrito anteriormente, na seção ABI. O exemplo de implementação da função de fatorial demonstra como fazer a chamada com um parâmetro.</p>
+
+<h2>Subrotinas Recursivas (Fatorial)</h2>
+
+<p>Este exemplo demonstra como o uso de uma pilha de dados permite chamadas recursivas, para isto, utilizaremos o código em C da função fatorial de <em>n</em>. Outro assunto explorado com este exemplo é a codificação em linguagem de máquina do condicional <code>if/then/else</code>.</p>
+
+
+<table>
+<caption>Fatorial de <em>n</em></caption>
+<tr><th>fatorial.c</th><th>fatorial.s</th></tr>
+<tr><td><pre>
+<strong>int</strong> fatorial(<strong>int</strong> n)
+{
+  <strong>if</strong> (n == 0)
+    <strong>return</strong> 1;
+  <strong>else</strong>
+    <strong>return</strong> n * fatorial(n-1);
+}
+</pre></td>
+<td><pre>
+	<strong><b>.text</b></strong>
+<strong><b>.globl</b></strong> _fatorial
+_fatorial:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$40, %esp
+	cmpl	$0, 8(%ebp)
+	jne	L2
+	movl	$1, -12(%ebp)
+	jmp	L4
+L2:
+	movl	8(%ebp), %eax
+	decl	%eax
+	movl	%eax, (%esp)
+	call	_fatorial
+	movl	%eax, %edx
+	imull	8(%ebp), %edx
+	movl	%edx, -12(%ebp)
+L4:
+	movl	-12(%ebp), %eax
+	leave
+	ret
+	<strong>.subsections_via_symbols</strong>
+</pre></td></tr>
+</table>
+
+<img src="images/x86-fatorial.png" alt="fluxograma" title="Fluxograma de fatorial.s" align="right">
+
+<p>O Fluxograma da subrotina é o que segue, com o código de montagem abaixo.</p>
+<dl>
+	<dt><code>_fatorial</code>: <code>pushl</code> e <code>movl</code></dt>
+		<dd>Prólogo da subrotina.</dd>
+	<dt><code>subl	$40, %esp</code></dt>
+		<dd>Abre espaço na pilha.</dd>
+	<dt><code>cmpl	$0, 8(%ebp)</code></dt>
+		<dd>Compara o parâmetro <em>n</em> com valor zero.</dd>
+	<dt><code>jne	L2</code></dt>
+		<dd>Se não for zero (n≠0), salta para L2.</dd>
+	<dt><code>movl	$1, -12(%ebp)</code></dt>
+		<dd>Guarda o valor 1 em uma variável temporária (temp).</dd>
+	<dt><code>jmp	L4</code></dt>
+		<dd>Salto incondicional para L4.</dd>
+	<dt><code>L2: movl	8(%ebp), %eax</code></dt>
+		<dd>Guarda <em>n</em> em EAX.</dd>
+	<dt><code>decl	%eax</code></dt>
+		<dd>Decrementa <em>n</em>.</dd>
+	<dt><code>movl	%eax, (%esp)</code></dt>
+		<dd>Guarda n no topo da pilha, para ser o parâmetro da chamada que segue.</dd>
+	<dt><code>call	_fatorial</code></dt>
+		<dd>Chama o procedimento <em>_fatorial</em>, com o novo <em>n</em>.</dd>
+	<dt>movl	%eax, %edx</dt>
+		<dd>Guarda o resultado da subrotina (EAX) em EDX</dd>
+	<dt><code>imull	8(%ebp), %edx</code></dt>
+		<dd>Multiplica o valor original de <em>n</em> com o retorno da chamada de <code>_fatorial</code>.</dd>
+	<dt><code>movl	%edx, -12(%ebp)</code></dt>
+		<dd>Guarda o resultado na variável temporária.</dd>
+	<dt><code>L4: movl	-12(%ebp), %eax</code></dt>
+		<dd>Salva em EAX o resultado do procedimento</dd>
+	<dt><code>leave</code> e <code>ret</code></dt>
+		<dd>Epílogo da subrotina.</dd>
+</dl>
+
+<table>
+	<caption>Organização da pilha em fatorial()</caption>
+<tr><th>Memória</th><th>Informação</th></tr>
+<tr><td>EBP+8</td><td>Parâmetro <em>n</em></td></tr>
+<tr><td>EBP+4</td><td>EIP salvo</td></tr>
+<tr><td>EBP</td><td>EBP salvo</td></tr>
+<tr><td>EBP-4</td><td>?</td></tr>
+<tr><td>EBP-8</td><td>?</td></tr>
+<tr><td>EBP-12</td><td>Variável temp</td></tr>
+<tr><td>EBP-16</td><td>?</td></tr>
+<tr><td>EBP-20</td><td>?</td></tr>
+<tr><td>EBP-24</td><td>?</td></tr>
+<tr><td>EBP-28</td><td>?</td></tr>
+<tr><td>EBP-32</td><td>?</td></tr>
+<tr><td>EBP-36</td><td>?</td></tr>
+<tr><td>EBP-40 (=ESP)</td><td>Topo</td></tr>
+</table>
+
+<h2>Otimizações do Compilador e Código de Montagem</h2>
+
+<p>Vejamos agora o resultado no código de montagem de true e false, quando passamos a diretriz <code>-Os</code> do GCC, que instrui ao compilador a gerar código com otimização e o menor possível. Como os nossos exemplos são triviais, não será possível conhecer todas as otimizações que o GCC é capaz de fazer.</p>
+<pre>
+$ <strong>gcc -m32 -Os -S true.c</strong>
+$ <strong>gcc -m32 -Os -S false.c</strong>
+</pre>
+
+<table>
+<caption>Código de montagem otimizado</caption>
+<tr><th>true.s</th><th>false.s</th></tr>
+<tr><td><pre>
+	.text
+.globl _main
+_main:
+	pushl	%ebp
+	movl	%esp, %ebp
+	xorl	%eax, %eax
+	leave
+	ret
+	.subsections_via_symbols
+</pre></td>
+<td><pre>
+	.text
+.globl _main
+_main:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	$1, %eax
+	leave
+	ret
+	.subsections_via_symbols
+</pre></td></tr>
+</table>
+
+<p>A otimização que observarmos está na instrução <code>xorl %eax, %eax</code> de true.s, que é jeito mais curto, com apenas dois bytes, para atribuir o valor zero ao registrador EAX. Este truque tem como base a propriedade A xor A = 0.</p>
+
+<p>O compilador foi experto o suficiente para verificar que a função <code>main()</code> não faz uso de variáveis locais ou chamada de subrotina, portanto não é necessário pré-alocar espaço na pilha. Como resultado desta otimização, nenhuma instrução <code>subl $xx, %esp</code> está presente.</p>
+
+<table>
+<caption>Código objeto otimizado</caption>
+<tr><th>true.o</th><th>false.o</th></tr>
+<tr><td><pre>
+true.o:
+(__TEXT,__text) section
+00000000 55 89 e5 31 c0 c9 c3
+</pre></td>
+<td><pre>
+false.o:
+(__TEXT,__text) section
+00000000 55 89 e5 b8 01 00 00 00 c9 c3 
+</pre></td></tr>
+<tr><td><pre>
+true.o:
+(__TEXT,__text) section
+_main:
+00000000	pushl	%ebp
+00000001	movl	%esp,%ebp
+00000003	xorl	%eax,%eax
+00000005	leave
+00000006	ret
+</pre></td>
+<td><pre>
+false.o:
+(__TEXT,__text) section
+_main:
+00000000	pushl	%ebp
+00000001	movl	%esp,%ebp
+00000003	movl	$0x00000001,%eax
+00000008	leave
+00000009	ret
+</pre></td></tr>
+</table>
+
+<h3>Código com omissão do ponteiro de frame</h3>
+
+<p>A diretriz do GCC <code>-fomit-frame-pointer</code> instrui ao compilador para desligar o uso de  ponteiro de frame e utilizar o EBP como um registrador de uso geral. Como consequência desse parâmetro, as operações com o <em>frame</em> podem ficar um pouco mais trabalhosas, mas por outro lado, ganha-se um registrador adicional para uso geral.</p>
+
+<p>Esta técnica de otimização é interessante para a arquitetura x86, que dispõe de poucos registradores se comparado a arquiteturas do tipo RISC, agraciadas com muitos registradores. Vejamos o resultado da diretriz.</p>
+
+<pre>
+$ <strong>gcc -m32 -fomit-frame-pointer -S true.c</strong>
+$ <strong>gcc -m32 -fomit-frame-pointer -S false.c</strong>
+</pre>
+
+<table>
+<caption>Código de montagem com omissão do ponteiro de frame</caption>
+<tr><th>true</th><th>false</th></tr>
+<tr><td><pre>
+	.text
+.globl _main
+_main:
+	subl	$12, %esp
+	movl	$0, %eax
+	addl	$12, %esp
+	ret
+	.subsections_via_symbols
+</pre></td>
+<td><pre>
+	.text
+.globl _main
+_main:
+	subl	$12, %esp
+	movl	$1, %eax
+	addl	$12, %esp
+	ret
+	.subsections_via_symbols
+</pre></td></tr>
+<tr><td><pre>
+true.o:
+(__TEXT,__text) section
+00000000 83 ec 0c b8 00 00 00 00 83 c4 0c c3 
+
+true.o:
+(__TEXT,__text) section
+_main:
+00000000	subl	$0x0c,%esp
+00000003	movl	$0x00000000,%eax
+00000008	addl	$0x0c,%esp
+0000000b	ret
+</pre></td>
+<td><pre>
+false.o:
+(__TEXT,__text) section
+00000000 83 ec 0c b8 01 00 00 00 83 c4 0c c3 
+
+false.o:
+(__TEXT,__text) section
+_main:
+00000000	subl	$0x0c,%esp
+00000003	movl	$0x00000001,%eax
+00000008	addl	$0x0c,%esp
+0000000b	ret
+</pre></td></tr>
+</table>
+
+<p>Não há referências ao registrador EBP (ponteiro de frame) nestes códigos e o código objeto gerado ficou muito reduzido, conforme podemos observar na remontagem do código. É importante frisar que a omissão do ponteiro de frame pode inviabilizar a utilização do GDB e que depurar código otimizado pode apresentar comportamento diferente do esperado.</p>
+
+<p>Para finalizar, vamos ativar otimização e omissão do ponteiro de frame para ver o resultado em código de montagem.</p>
+<pre>
+$ <strong>gcc -m32 -Os -fomit-frame-pointer -S true.c</strong>
+$ <strong>gcc -m32 -Os -fomit-frame-pointer -S false.c</strong>
+</pre>
+
+<table>
+<caption>Código de montagem com otimização e omissão do ponteiro de frame</caption>
+<tr><th>true</th><th>false</th></tr>
+<tr><td><pre>
+	.text
+.globl _main
+_main:
+	xorl	%eax, %eax
+	ret
+	.subsections_via_symbols
+</pre></td>
+<td><pre>
+	.text
+.globl _main
+_main:
+	movl	$1, %eax
+	ret
+	.subsections_via_symbols
+</pre></td></tr>
+
+<tr><td><pre>
+true.o:
+(__TEXT,__text) section
+00000000 31 c0 c3 
+
+true.o:
+(__TEXT,__text) section
+_main:
+00000000	xorl	%eax,%eax
+00000002	ret
+</pre></td>
+<td><pre>
+false.o:
+(__TEXT,__text) section
+00000000 b8 01 00 00 00 c3 
+
+false.o:
+(__TEXT,__text) section
+_main:
+00000000	movl	$0x00000001,%eax
+00000005	ret
+</pre></td></tr>
+</table>
+
+<h2 id="referencias">Referências</h2>
+
+<ul>
+  <li><a href="http://www.intel.com/products/processor/manuals/index.htm">Intel® 64 and IA-32 Architectures Software Developer's Manuals</a></li>
+  <li><a href="http://developer.apple.com/mac/library/documentation/DeveloperTools/Reference/Assembler/000-Introduction/introduction.html">Mac OS X Assembler Reference</a></li>
+  <li><a href="http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/LowLevelABI/index.html">Introduction to Mac OS X ABI Function Call Guide</a></li>
+  <li><a href="http://www.fabiensanglard.net/macosxassembly/index.php">IA-32 assembly on Mac OS X</a> de Fabien Sanglard</li>
+</ul>
+    </section>
+  </body>
+</html>

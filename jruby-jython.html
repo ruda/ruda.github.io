@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Using Java from JRuby and Jython</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="image" content="favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.ico">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Using Java components from JRuby and Jython.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+  <section>
+  <h1>Using Java from JRuby and Jython</h1>
+
+<p>Java has good reputation and rich framework for wide range of uses, mostly related to B2B. Well said, although this collection of libraries are good, the Java language is sometimes “too hard“ for those who enjoys dynamic and interpreted languages, like Ruby and Python.</p>
+
+<p>There is hope at the end of the road. <a href="http://jruby.org/">JRuby</a> and <a href="http://www.jython.org/">Jython</a> are complete implementation of Ruby and Python that works on the top of JVM, so you can have a two-way bridge between Java and Ruby/Python.</p>
+
+<blockquote><b>Important notice</b>: neither JRuby or Jython comes installed on Mac OS X. I've just download them and installed under <code>~/Library/</code> folder without using the version number in the name part. Feel free to install anywhere you want.</blockquote>
+
+<p>In this article, I will teach how to use <a href="http://logging.apache.org/log4j/">Apache log4j</a> logging library directly in JRuby (and Jython). Please, keep <a href="http://logging.apache.org/log4j/1.2/apidocs/index.html">Apache Log4j 1.2.16 API</a> opened to follow this explanation.</p>
+
+<p>The example as it follows:</p>
+<pre># test-log4j.rb
+
+require "java"
+require "log4j-1.2.16.jar"
+</pre>
+<p>The first <code>require</code> allows JRuby to use the core Java functionalities. The second <code>require</code> loads classes, methods and everything else from the JAR file.</p>
+<pre>org.apache.log4j.BasicConfigurator.configure
+</pre>
+<p>Call static method <a href="http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/BasicConfigurator.html#configure()">configure()</a> from BasicConfigurator class. This method setup a standard log format to output messages to the screen.</p>
+<pre>log = org.apache.log4j.Logger.getLogger "jruby"
+</pre>
+<p>Call constructor method <a href="http://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/Logger.html#Logger(java.lang.String)">getLogger()</a> from Logger with parameter <em>jruby</em>. The result of this call is a instance and handler saved into log variable. We need this handler to write log messages with specific log level. We also defined <em>jruby</em> (the argument of getLogger) to print in every log message.</p>
+<pre>log.trace "This is my trace message"
+log.debug "This is my debug message"
+log.info "This is my info message"
+log.warn "This is my warning message"
+log.error "This is my error message"
+log.fatal "This is my critical error message"
+</pre>
+<p>For each log level (trace, debug, info, warn, error, fatal) there is a method in <code>log</code> to call. Every call has a string argument – the message that we want to log.</p>
+
+<p>Running the script gives the following output:</p>
+<pre>$ <b>~/Library/JRuby/bin/jruby teste-log4j.rb</b>
+0 [main] DEBUG jruby  - This is my debug message
+1 [main] INFO jruby  - This is my info message
+1 [main] WARN jruby  - This is my warning message
+1 [main] ERROR jruby  - This is my error message
+2 [main] FATAL jruby  - This is my critical error message
+</pre>
+<p>Note the TRACE message was not displayed on screen, because the default configuration only allow messages from DEBUG level to higher (FATAL).</p>
+
+<p>The same example written in Jython is:</p>
+<pre>$ <b>~/Library/Jython/bin/jython</b> 
+Jython 2.5.1 (Release_2_5_1:6813, Sep 26 2009, 13:47:54) 
+[Java HotSpot(TM) 64-Bit Server VM (Apple Inc.)] on java1.6.0_20
+Type "help", "copyright", "credits" or "license" for more information.
+&gt;&gt;&gt; <b>import sys</b>
+&gt;&gt;&gt; <b>sys.path.append("log4j-1.2.16.jar")</b>
+&gt;&gt;&gt; <b>import org.apache.log4j</b>            
+*sys-package-mgr*: processing new jar, '/Users/ruda/log4j-1.2.16.jar'
+&gt;&gt;&gt; <b>org.apache.log4j.BasicConfigurator.configure</b>
+&lt;java function configure 0x1&gt;
+&gt;&gt;&gt; <b>org.apache.log4j.BasicConfigurator.configure()</b>
+&gt;&gt;&gt; <b>log = org.apache.log4j.Logger.getLogger("jython")</b>
+&gt;&gt;&gt; <b>log.info("Hello from Jython!")</b>
+0 [main] INFO jython  - Hello from Jython!
+</pre>
+
+  </section>
+  </body>
+</html>

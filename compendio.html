@@ -1,0 +1,874 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+	<title>Compêndio de Informática</title>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" type="text/css" href="css/normalize.css">
+        <link rel="stylesheet" type="text/css" href="css/site.css">
+</head>
+
+<body>
+
+<h1 id="compendio">Compêndio de Informática</h1>
+
+<p>Resumo de coisas que aprendi em informática, na maioria das vezes, coisas que dizem respeito à Linux e Macintosh<br>© 2008 Rudá Moura - Porto Alegre, RS</p>
+
+<p>
+	<a href="#apache">Apache</a>,
+	<a href="#chroot">chroot</a>,
+	<a href="#cvs">CVS</a>,
+	<a href="#ipfw">ipfw</a>,
+	<a href="#javascript">Javascript</a>,
+	<a href="#otool">otool</a>,
+	<a href="#perl">Perl</a>,
+	<a href="#php">PHP</a>,
+	<a href="#python">Python</a>,
+	<a href="#ssh-agentctl">ssh-agentctl.pl</a>
+	<a href="#svn">Subversion</a>,
+	<a href="#top">top</a>,
+	<a href="#vim">Vim</a>,
+</p>
+
+
+
+<h2 id="apache">Apache</h2>
+<p>Validar a sintaxe do arquivo de configuração:</p>
+<pre>
+$ <strong>httpd -t</strong>
+Syntax OK
+</pre>
+
+<p>Exibir informacoes dos vhosts</p>
+<pre>
+$ httpd -S
+</pre>
+
+<p>Reler configurações sem derrubar o Apache por inteiro. Não funciona para recarregar módulos dinâmicos.</p>
+<pre>
+# httpd -k graceful
+</pre>
+
+<p>No Apache 1.x o mesmo efeito é obtido enviando o sinal <code>USR1</code> para o processo pai do httpd.</p>
+
+
+
+<h2 id="chroot">Chroot no Macintosh</h2>
+
+<p>Montar um chroot corresponde a criar em um diretório um conjunto mínimo de arquivos e diretórios necessários para a execução de um determinado programa. Estes arquivos correspondem as bibliotecas dinâmicas de suporte ao programa e demais arquivos de configuração. Um chroot é uma mini-instalação auto-contida é utilizado muitas vezes como mecanismo de segurança e como uma caixa de areia para testes.</p>
+
+<p>Para o propósito da demonstração, o diretório destino se chamará <em>target</em> e conterá o mínimo de arquivos necessários para executar o shell <em>Bash</em>.</p>
+<pre>
+$ <strong>pwd</strong>
+/Users/ruda
+$ <strong>mkdir -p target/bin</strong>
+$ <strong>cp /bin/bash target/bin</strong>
+</pre>
+
+<p>É preciso conhecer quais são bibliotecas que o shell necessita para executar.</p>
+<pre>
+$ <strong>otool -L target/bin/bash</strong>
+target/bin/bash:
+        /usr/lib/libncurses.5.4.dylib (compatibility version 5.4.0, current version 5.4.0)
+        /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 88.3.7)
+        /usr/lib/libgcc_s.1.dylib (compatibility version 1.0.0, current version 1.0.0)
+</pre>
+<p>E então copiar para dentro do chroot, no diretório apropriado.</p>
+<pre>
+$ <strong>cp /usr/lib/libncurses.5.4.dylib target/usr/lib/</strong>
+$ <strong>cp /usr/lib/libSystem.B.dylib target/usr/lib/</strong>
+$ <strong>cp /usr/lib/libgcc_s.1.dylib target/usr/lib/</strong>
+</pre>
+
+<p>A primeira tentativa de entrar no chroot é pura frustração.</p>
+<pre>
+$ <strong>sudo chroot target</strong>
+Bus error
+</pre>
+
+<p>Executando um programa que rastreia as chamadas de sistema de um binário, é possível descobrir o que aconteceu de errado.</p>
+<pre>
+$ <strong>sudo ktrace chroot target</strong>
+$ <strong>sudo kdump | tail -4</strong>
+Bus error
+16510 chroot   NAMI  "/bin/bash"
+16510 chroot   NAMI  "/usr/lib/dyld"
+16510 chroot   RET   execve -1 errno 2 No such file or directory
+16510 chroot   PSIG  SIGBUS SIG_DFL
+</pre>
+
+<p>O log mostra que não foi possível encontrar o link editor (dyld), óbvio que sem um link editor não é possível montar para o sistema operacional um executável que faz uso de alguma biblioteca dinâmica. Agora é copiar o link editor e fazer mais uma tentativa.</p>
+<pre>
+$ <strong>cp /usr/lib/dyld target/usr/lib</strong>
+$ <strong>sudo chroot target</strong>
+dyld: Library not loaded: /usr/lib/system/libmathCommon.A.dylib
+  Referenced from: /usr/lib/libSystem.B.dylib
+  Reason: image not found
+Trace/BPT trap
+</pre>
+
+<p>Está faltando mais uma biblioteca, é necessário então instalar para prosseguir.</p>
+<pre>
+$ <strong>mkdir -p target/usr/lib/system</strong>
+$ <strong>cp /usr/lib/system/libmathCommon.A.dylib target/usr/lib/system</strong>
+</pre>
+
+<p>E finalmente conseguir executar o Bash neste chroot.</p>
+<pre>
+$ <strong>sudo chroot target</strong>
+bash-2.05b# <strong>pwd</strong>
+/
+bash-2.05b# <strong>exit</strong>
+exit
+</pre>
+
+
+
+<h2 id="cvs">CVS</h2>
+
+<p>Importar um projeto no CVS é submeter um conjunto de arquivos para o sistema de revisão de código.</p>
+<pre>
+$ export CVS_RSH=ssh
+$ cvs -z3 -d:ext:ruda@rudix.cvs.sourceforge.net:/cvsroot/rudix import Rudix-2007r3 start ruda
+</pre>
+
+<p>Onde 'start' vira uma TAG.</p>
+
+<p>Para fazer o <em>checkout</em> de um projeto, ou seja, baixar a versão mais atual (HEAD) do sistema de revisão.</p>
+<pre>
+$ export CVS_RSH=ssh 
+$ cvs -z3 -d:ext:ruda@rudix.cvs.sourceforge.net:/cvsroot/rudix co Rudix-2007r3
+</pre>
+
+<p>Por por tags em um projeto (garatido que ja' rolou cvs update)</p>
+<pre>
+$ cvs tag -R Rudix-2007r4
+$ cvs tag -b -R Rudix-2007r4  # cria um branch
+</pre>
+
+<p>Diferenca entre arquivos, o comando diff do CVS aceita o -u do comando diff.</p>
+<pre>
+$ cvs diff -rstart Makefile
+</pre>
+
+<p>Exportar um projeto</p>
+<pre>
+$ cvs -z3 -d:ext:ruda@rudix.cvs.sourceforge.net:/cvsroot/rudix export -r end Rudix-2007r4
+</pre>
+
+<p>Apaga arquivo e remove do revisionamento</p>
+<pre>
+$ cvs rm -f License.rtf
+</pre>
+
+<p>Retorna todas as modificações de arquivo para a versão HEAD no respositório.</p>
+<pre>
+$ cvs update -C
+</pre>
+
+
+
+<h2 id="environ">Variáveis de Ambiente (Environment)</h2>
+<pre>
+CFLAGS
+LDFLAGS
+CPPFLAGS
+CXXFLAGS
+LDPRELOAD
+LDLIBRARYPATH
+</pre>
+
+
+
+<h2 id="ipfw">ipfw</h2>
+
+<p>Notei que o meu Mac estava fazendo uso de CPU a mais do que esperava, chamei então <a href="http://www.oreilly.com/pub/a/mac/2005/10/04/activity-monitor.html">Activity Monitor</a> e pude observar que o sshd(8) era o culpado. Sabia que algo estranho estava acontecendo, pois o sshd é um processo que naturalmente consome pouca CPU. Fui verificar os logs do sistema com o Console.app e notei em /etc/secure.log uma tentativa sistemática de logins via ssh em minha máquina, vindas de um IP específico.</p>
+
+<pre>
+Apr 12 12:25:38 Snowflake sshd[13563]: Invalid user lab from 213.228.158.38
+Apr 12 12:25:38 Snowflake com.apple.SecurityServer: \
+	authinternal failed to authenticate user lab.
+Apr 12 12:25:38 Snowflake com.apple.SecurityServer: \
+	Failed to authorize rightsystem.login.tty \
+	by process /usr/sbin/sshd for authorization created by /usr/sbin/sshd.
+Apr 12 12:25:38 Snowflake sshd[13563]: \
+	Failed password for invalid user lab from 213.228.158.38 port 36762 ssh2
+</pre>
+
+<p>A solução que encontrei foi procurar bloquear o acesso ssh deste IP via regra de firewall. Descobri que o Mac utiliza o utilitário <a href="http://www.freebsd.org/doc/en/books/handbook/firewalls-ipfw.html">ipfw</a> para o controle de regras na linha de comando.</p>
+
+<p>O Primeiro uso que fiz foi listar as regras que constam no firewall. Esta é a saída do ipfw list no Tiger:</p>
+<pre>
+$ <strong>sudo ipfw list</strong> 
+65535 allow ip from any to any
+</pre>
+
+<p>A regra para bloquear qualquer requisição oriundo do IP 213.228.158.38 é então</p>
+<pre>
+$ <strong>sudo ipfw add 12345 deny ip from 213.228.158.38 to any in</strong>
+</pre>
+
+<p>Por redundância, fui ver se a regra estava listada</p>
+<pre>
+$ <strong>sudo ipfw list</strong>
+12345 deny ip from 213.228.158.38 to any in
+65535 allow ip from any to any
+</pre>
+
+<p>É possível remover a nova regra, se achar que ela não é mais necessária, através do comando ipfw del</p>
+<pre>
+$ <strong>sudo ipfw del 12345</strong>
+</pre>
+
+
+
+<h2 id="javascript">Javascript</h2>
+<p>Verificando se o browser suporta Javascript ou se o suporte está desligado.</p>
+<pre>
+&lt;noscript&gt;
+&lt;p style=&quot;color: Red&quot;&gt;Suporte a Javascript desligado.&lt;/p&gt;
+&lt;/noscript&gt;
+</pre>
+
+<p>Código Javascript no próprio HTML.</p>
+<pre>
+&lt;script type=&quot;text/javascript&quot;&gt;
+...
+&lt;/script&gt;
+</pre>
+
+<p>O print do Javascript é <code>document.write("Hello World!")</code>. O método write() aceita mais de um parâmetro e como resultado cada parâmetro é impresso sem espaço entre eles. Para abrir um pop-up na tela usa-se a função alert().</p>
+
+<p>Identificar qual é o navegador e plataforma.</p>
+<pre>
+var user-agent = navigator.userAgent;
+var platform = navigator.platform;
+</pre>
+
+<p>Obter os cookies em forma de string. O método split(s) quebra uma string com o delimitador <em>s</em> e retorna um array.</p>
+<pre>
+var cookies = document.cookie();
+var params = cookies.split(";");
+</pre>	
+
+<p>Obter a query string.</p>
+<pre>
+var query = window.location.search.substring(1);
+var params = query.split("&amp;");
+</pre>
+
+<h3>Tipos de dados primitivos</h3>
+<p>Números 0, 1, 2, 3.0 são do tipo <code>number</code>. O tipo lógico é um <code>boolean</code>, que pode ser verdadeiro (<code>true</code>) ou falso (<code>false</code>). Uma sequência de caracteres é do tipo <code>string</code> (Javascript é Unicode). Há tipos bizarros como o <code>null</code> (sem valor) e o <code>undefined</code> (objeto não definido).</p>
+
+<p>Javascript é de tipagem fraca e dinâmica. 1 + "1" é igual a 2.
+
+<h3>Estruturas de controle</h3>
+
+<p>O condicional if.</p>
+
+<pre>
+if (params == true) {
+	...
+}
+</pre>
+
+<p>If com else.<p>
+<pre>
+if (cmd == "start") {
+	...
+} else if (cmd == "stop") {
+	...
+} else {
+	usage();
+}
+</pre>
+
+<p>O operador ?</p>
+<pre>
+var msg = "O nome é " + (nome) ? nome : "sem nome";
+</pre>
+
+<p>Controle de laços</p>
+<pre>
+for (var index in params) {
+	var param = params[index];
+	...
+}
+</pre>
+
+<p>Veja também <a href="file:///Developer/ADC%20Reference%20Library/documentation/ScriptingAutomation/Conceptual/JSCodingGuide/index.html#//apple_ref/doc/uid/TP40006088">JavaScript Coding Guidelines for Mac OS X</a>.
+
+<h2 id="ktrace">ktrace/kdump</h2>
+
+<p>O comando ktrace rastrea a execução de um processo e guarda as informações no arquivo ktrace.out. O comando kdump imprime de forma legível o que foi guardado no arquivo ktrace.out. O ktrace recebe um arquivo ou um PID através da flag <code>-p</code>.</p>
+
+<p>Rastrear somente as chamadas do sistema (syscalls).</p>
+<pre>
+$ <strong>ktrace -tc date</strong>
+Mon Apr 21 19:00:50 BRT 2008
+$ <strong>kdump | tail</strong>
+  2955 date     RET   shm_open 3
+  2955 date     CALL  mmap(0,0x1000,0x1,0x1,0x3,0)
+  2955 date     RET   mmap 24576/0x6000
+  2955 date     CALL  fstat(0x1,0xbffff600)
+  2955 date     RET   fstat 0
+  2955 date     CALL  ioctl(0x1,FIODTYPE,0xbffff5cc)
+  2955 date     RET   ioctl 0
+  2955 date     CALL  write(0x1,0x7000,0x1d)
+  2955 date     RET   write 29/0x1d
+  2955 date     CALL  exit(0)
+</pre>
+
+<p>Rastrear as traduções de namei em acesso a arquivos.</p>
+<pre>
+$ <strong>ktrace -tn date</strong>
+Mon Apr 21 19:01:49 BRT 2008
+$ <strong>kdump</strong> 
+  2978 ktrace   NAMI  "/bin/date"
+  2978 ktrace   NAMI  "/usr/lib/dyld"
+  2978 date     NAMI  "/dev/urandom"
+  2978 date     NAMI  "/usr/lib/libgcc_s.1.dylib"
+  2978 date     NAMI  "/usr/lib/libSystem.B.dylib"
+  2978 date     NAMI  "/usr/lib/system/libmathCommon.A.dylib"
+  2978 date     NAMI  "/dev/urandom"
+  2978 date     NAMI  "/etc/localtime"
+  2978 date     NAMI  "/etc/localtime"
+  2978 date     NAMI  "apple.shm.notification_center"
+</pre>
+
+<p>Rastrear as operações de E/S</p>
+<pre>
+$ <strong>ktrace -ti date</strong>
+$ <strong>kdump | tail -3</strong>
+  3091 date     GIO   fd 1 wrote 29 bytes
+       "Mon Apr 21 19:09:36 BRT 2008
+       "
+</pre>
+
+<p>Rastrear por sinais.</p>
+<pre>
+$ <strong>ktrace -ts perl</strong>
+<strong>^C</strong>
+$ <strong>kdump</strong> 
+  3197 perl     PSIG  SIGINT SIG_DFL
+</pre>
+
+
+
+<h2 id="lipo">lipo</h2>
+<p>Listar as características de um binário</p>
+<pre>
+$ <strong>lipo -i /usr/bin/true</strong> 
+Architectures in the fat file: /usr/bin/true are: i386 ppc
+$ <strong>lipo -i /Applications/VMware\ Fusion.app/Contents/MacOS/vmware</strong> 
+Non-fat file: /Applications/VMware Fusion.app/Contents/MacOS/vmware is architecture: i386
+</pre>
+
+<p>Remover uma arquitetura de um binário.</p>
+<pre>
+$ <strong>lipo -remove ppc /usr/bin/true -output true_i386</strong>
+$ <strong>lipo -remove i386 /usr/bin/true -output true_ppc</strong>
+</pre>
+
+<p>Combinar múltiplas arquiteturas em um arquivo Universal Binary.</p>
+<pre>
+$ lipo -create true_i386 true_ppc -o true
+</pre>
+
+
+<h2 id="lookupd">lookupd</h2>
+
+<p>O lookupd é um cache e um servidor de informações com habilidades de DNS, NIS, NetInfo e arquivos no /etc. O lookupd possui um modo interativo para consulta, que é ativo com a opção <code>-d</code>.</p>
+<pre>
+$ <strong>lookupd -d</strong>
+lookupd version 369.6 (root 2007.04.10 23:48:20 UTC)
+Enter command name, &quot;help&quot;, or &quot;quit&quot; to exit
+&gt; <strong>userWithName: root</strong>
+Dictionary: &quot;NI: user root&quot;
+_lookup_agent: NIAgent
+_lookup_validation: 0 32474
+_writers_passwd: root
+change: 0
+expire: 0
+gid: 0
+home: /var/root
+name: root
+passwd: *
+realname: System Administrator
+shell: /bin/sh
+uid: 0
++ Category: user
++ Time to live: 43200
++ Age: 0 (expires in 43200 seconds)
++ Negative: No
++ Cache hits: 0
++ Retain count: 4
+</pre>
+
+<p>Para zerar o cache de informações do daemon, pode ser útil quando o /etc/hosts for alterado e deseja forçar a atualização.</p>
+<pre>
+$ lookupd -flushcache
+</pre>
+
+<p>Algumas consultas...</p>
+<pre>
+$ <strong>lookupd -q user</strong>
+$ <strong>lookupd -q host</strong>
+</pre>
+
+<p>Estatísticas do daemon</p>
+<pre>
+$ <strong>lookupd -statistics</strong>
+
+# Build: root 2007.04.10 23:48:20 UTC
+# Timestamp: 2008.04.27 19:07:01 UTC
+# Total Memory: 4461
+# Version: 369.6
+</pre>
+
+
+
+
+
+<h2 id="ssh-agentctl">ssh-agentctl.pl</h2>
+
+<p>Preparando o ambiente no Mac. Verificar se existe no diretório do usuário o arquivo <code>.MacOSX/environment.plist</code>. Se já existir, abrir o arquivo com o comando <code>open</code></p>
+<pre>
+# .profile
+
+export SSH_AUTH_SOCK="$HOME/.ssh-agent.socket"
+</pre>
+
+<p>O Arquivo deve estar semelhante ao abaixo, somente o nome do usuário que deve ser alterado de ruda para outro qualquer</p>
+<pre>
+$ <strong>cat .MacOSX/environment.plist</strong> 
+&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!DOCTYPE plist PUBLIC &quot;-//Apple Computer//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;
+&lt;plist version=&quot;1.0&quot;&gt;
+&lt;dict&gt;
+	&lt;key&gt;SSH_AUTH_SOCK&lt;/key&gt;
+	&lt;string&gt;/Users/ruda/.ssh-agent.socket&lt;/string&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;
+</pre>
+
+
+
+
+
+<h2>FIXME</h2>
+<p>No Activity Monitor Wired Memory corresponde a parte da Memória RAM que não pode ir para o arquivo de troca.</p>
+
+<pre>
+$ <strong>hash</strong>
+hits    command
+   4    /usr/bin/cvs
+   2    /usr/sbin/lookupd
+   4    /usr/bin/ktrace
+   2    /bin/rm
+   1    /bin/mv
+   1    /usr/sbin/httpd
+   1    /Users/ruda/bin/mate
+   4    /usr/bin/kdump
+   3    /usr/bin/man
+   1    /usr/bin/otool
+   7    /bin/ls
+   1    /usr/bin/open
+</pre>
+
+<pre>
+$ <strong>hash -r</strong>
+$ <strong>hash</strong>
+hash: hash table empty
+</pre>
+
+
+
+<h2>diskutil</h2>
+
+<pre>
+$ diskutil eraseDisk "MS-DOS FAT32" 128MB  disk3
+</pre>
+
+<pre>
+$ diskutil info lftp-3.6.1-0.dmg
+   Device Node:        /dev/disk0s2
+   Device Identifier:  disk0s2
+   Mount Point:        /
+   Volume Name:        Macintosh HD
+
+   File System:        Journaled HFS+
+                       Journal size 8192 k at offset 0x1bf000
+   Owners:             Enabled
+   Partition Type:     Apple_HFS
+   Bootable:           Is bootable
+   Media Type:         Generic
+   Protocol:           SATA
+   SMART Status:       Verified
+   UUID:               F2FA67D3-69E7-3CFF-91F2-3969793F65A0
+
+   Total Size:         55.6 GB
+   Free Space:         19.3 GB
+
+   Read Only:          No
+   Ejectable:          No
+</pre>
+
+<pre>
+$ diskutil mount lftp-3.6.1-0.dmg
+Volume lftp-3.6.1-0.dmg mounted
+</pre>
+
+
+
+
+
+<h2 id="ffmpeg">ffmeg</h2>
+<pre>
+# Video CD
+$ ffmpeg -i video.avi -target pal-vcd video.mpg
+
+# Super Video CD
+$ ffmpeg -i video.avi -target pal-svcd video.mpg
+
+# Split video in two
+$ ffmpeg -i input.mpg -ss 00:00:10 -t 00:00:30 out1.mpg -ss 00:00:35 -t 00:00:30 out2.mpg
+</pre>
+
+
+<p>Para compartilhar as chaves pública e privada do GPG com o PGP, faça:</p>
+<pre>
+$ cd .gnupg/
+$ ln -sf ~/Documents/PGP/PGP\ Public\ Keyring.pkr pubring.gpg
+$ ln -sf ~/Documents/PGP/PGP\ Private\ Keyring.skr secring.gpg 
+</pre>
+
+
+<h2 id="groff">groff</h2>
+<pre>
+$ grog echo.1
+groff -mdoc echo.1
+
+$ groff -mdoc echo.1 > echo.1.ps
+
+$ groff -man -Tascii echo.1 | less
+
+$ groff -man -Thtml echo.1 > echo.1.html
+halt -p
+</pre>
+
+<h2 id="libtool">libtool</h2>
+<p>Existe o libtool do Darwin e o glibtool que e' o libtool do projeto GNU.</p>
+<pre>
+$ libtool -V
+Apple Computer, Inc. version cctools-622.5
+
+$ glibtool --version
+ltmain.sh (GNU libtool) 1.5 (1.1220 2003/04/05 19:32:58)
+
+Copyright (C) 2003  Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+</pre>
+
+
+
+
+
+
+
+
+
+<h2>mds</h2>
+<pre>
+mds - daemon que fica rodando e as vezes come muita CPU
+mdimport
+mdls ~/Pictures/domingos_bianca.jpg  | more
+
+cache de meta-dados
+</pre>
+
+<h2>nmap</h2>
+<pre>
+$ nmap -A -T4 localhost
+
+Starting Nmap 4.20 ( http://insecure.org ) at 2008-01-27 17:10 BRST
+Interesting ports on bd204c0d.poa.virtua.com.br (127.0.0.1):
+Not shown: 945 filtered ports, 749 closed ports
+PORT     STATE SERVICE     VERSION
+22/tcp   open  ssh         OpenSSH 4.5 (protocol 1.99)
+631/tcp  open  ipp         CUPS 1.1
+1033/tcp open  rpc.unknown
+
+Service detection performed. Please report any incorrect results at http://insecure.org/nmap/submit/ .
+Nmap finished: 1 IP address (1 host up) scanned in 40.639 seconds
+</pre>
+
+<h2>ldd</h2>
+<p>Similar ao ldd(1) no Cygwin:</p>
+<pre>
+$ objdump.exe -p -j idata /usr/bin/ls.exe | grep "DLL Name"
+        DLL Name: cygwin1.dll
+        DLL Name: cygintl-8.dll
+        DLL Name: KERNEL32.dll
+</pre>
+
+
+<h2>otool</h2>
+
+<p>List objects in a library.</p>
+<pre>
+$ <strong>otool -av /usr/lib/liby.a</strong> 
+Archive : /usr/lib/liby.a
+-rw-r--r--  0/0      92 Fri Apr 20 09:52:39 2007 __.SYMDEF SORTED
+-rw-r--r--  0/0     460 Fri Apr 20 09:52:39 2007 main.o
+-rw-r--r--  0/0     780 Fri Apr 20 09:52:39 2007 yyerror.o
+-rw-r--r--  0/0     268 Fri Apr 20 09:52:39 2007 y_vers.o
+</pre>
+
+<p>List libraries which the object depends on -- similar to ldd(1) in Linux.</p>
+<pre>
+$ <strong>otool -L /bin/sync</strong> 
+/bin/sync:
+        /usr/lib/libgcc_s.1.dylib (compatibility version 1.0.0, current version 1.0.0)
+        /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 88.3.7)
+</pre>
+
+<p>List symbols in an object file.</p>
+<pre>
+$ <strong>otool -Iv /usr/lib/libSystem.B.dylib | grep qsort</strong>
+0xa0011604  3937 _qsort
+</pre>
+
+<p>Disassembly an object.</p>
+<pre>
+$ <strong>otool -tV /bin/sync | tail</strong>
+00001f93        nop
+__dyld_func_lookup:
+00001f94        jmp     *0x00002014
+_main:
+00001f9a        pushl   %ebp
+00001f9b        movl    %esp,%ebp
+00001f9d        subl    $0x18,%esp
+00001fa0        calll   0x0000301b      ; symbol stub for: _sync
+00001fa5        movl    $0x00000000,(%esp,1)
+00001fac        calll   0x0000300c      ; symbol stub for: _exit
+</pre>
+
+<p>Disassembly for a specific architecture.</p>
+<pre>
+$ <strong>otool -arch ppc -X -tV /usr/bin/true > true.dis</strong>
+$ <strong>otool -arch ppc -X -tV /usr/bin/false > false.dis</strong>
+$ <strong>diff -u true.dis false.dis</strong> 
+--- true.dis    2007-09-23 23:23:51.000000000 -0300
++++ false.dis   2007-09-23 23:23:59.000000000 -0300
+@@ -590,7 +590,7 @@
+        mtspr   ctr,r12
+        bctr
+        mfspr   r0,lr
+-       li      r3,0x0
++       li      r3,0x1
+        stw     r0,0x8(r1)
+        stwu    r1,0xffb0(r1)
+        bl      0x2d40  ; symbol stub for: _exit
+</pre>
+
+
+
+<h2 id="perl">Perl</h2>
+
+<h3>Tipos de dados</h3>
+
+<p>Perl possui tipos no singular, como $scalar que pode ser um inteiro 10, um ponto flutuante 10.0 e uma "cadeia de caracters". Tipos no plural podem ser um @array, que funciona como uma lista dinâmica, e um %hash que é um array associativo, conjuntos de chave e valor.</p>
+<pre>
+my $zero = 0;
+my $pi = 3.1415;
+my $saudacao = "Olá";
+my @digitos = ("zero", "um", "dois", "tres", "quatro");
+my %semana = (
+	"seg" => "Segunda-feira", "ter" => "Terça-feira",
+	"qua" => "Quarta-feira", "qui" => "Quinta-feira",
+	"sex" => "Sexta-feira", "sab" => "Sábado",
+	"dom" => "Domingo",
+);
+</pre>
+
+<p>Supondo que o código acima foi interpretado, teremos</p>
+<pre>
+<strong>print 1 + "2", "\n";</strong>
+3
+<strong>print 1 . "2", "\n";</strong>
+12
+<strong>print "Hoje é " . $semana{"dom"};</strong>
+Hoje é Domingo
+<strong>print $digitos[4], "\n";</strong>
+quatro
+</pre>
+
+<h3>Estruturas de controle</h3>
+<pre>
+foreach my $param (@params) {
+	...
+}
+</pre>
+
+<p>Bizarrices com a função grep e map.</p>
+<pre>
+@nums = (65, 66, 67, 68, 69, 70);
+@chars = map(chr, @nums);
+print "@chars\n";
+
+@nums = grep { $_ % 2 == 0 } @nums;
+print "@nums2\n";
+</pre>
+
+<p>Substituir uma string em um arquivo, igual o sed sem precisar de um arquivo temporário.</p>
+<pre>
+$ perl -pi -e 's/^prep: retrive/prep: retrieve/' Makefile
+</pre>
+
+
+
+<h2 id="php">PHP</h2>
+<pre>
+$useragent = $_SERVER['HTTP_USER_AGENT'];
+$accept = $_SERVER["HTTP_ACCEPT"];
+$profile = $_SERVER["HTTP_PROFILE"];
+</pre>
+
+
+
+<h2 id="pkg-config">Pkg-config</h2>
+<p>Listar todos os módulos disponíveis no pkg-config.</p>
+<pre>
+$ pkg-config --list-all | grep apr
+apr-1                 APR - The Apache Portable Runtime library
+apr-util-1            APR Utils - Companion library for APR
+</pre>
+
+<p>Quais são as flags do compilador e do link editor para compilar algo com apr-1?</p>
+<pre>
+$ <strong>pkg-config --cflags apr-1</strong>
+-DDARWIN -DSIGPROCMASK_SETS_THREAD_MASK -no-cpp-precomp -I/usr/local/include/apr-1  
+$ <strong>pkg-config --libs apr-1</strong>
+-L/usr/local/lib -lapr-1 -lpthread
+</pre>
+
+<p>Por em prática o pkg-config com o gcc:</p>
+<pre>
+$ gcc `pkg-config --cflags --libs apr-1` apr.c
+</pre>
+
+
+<h2 id="python">Python</h2>
+<h3>Como o interpretador CPython 2.5.2 é iniciado</h3>
+<p>Como em todo programa em C, o interpretador Python possui uma função de entrada main(), que está em <code>Modules/python.c</code>. Esta função chama Py_Main(), que está em <code>Modules/main.c</code>, com os argumentos de main() e o retorno de Py_Main() é utilizado para própria saída de main().</p>
+
+<p>A primeira tarefa de Py_Main() é configurar os diversos parâmetros que o interpretador recebe através de flags. Em seguida o ambiente do interpretador é iniciado com a chamada da função Py_Initialize() em <code>Python/pythonrun.c</code>.</p>
+	
+<p>De acordo com as flags que o interpretador recebe, uma das função de execução do interpretador é chamada, pode ser PyRun_SimpleStringFlags() em <code>Modules/pythonrun.c</code>, RunModule() em <code>Modules/main.c</code>, PyRun_AnyFileExFlags() ou PyRun_AnyFileFlags(), ambos em <code>Python/pythonrun.c</code>.
+	
+<p>A finalização de Py_Main() ocorre com as chamadas a WaitForThreadShutdown() em <code>Modules/main.c</code> e Py_Finalize() em <code>Python/pythonrun.c</code>.</p>
+
+
+
+<h2 id="ssh">SSH</h2>
+<p>Tunel SSH para IMAP, requer o uso de <em>root</em> porque usa uma porta TCP local baixa (menor que 1024).</p>
+<pre>
+$ sudo ssh -L 143:localhost:143 ruda@d00dz.org
+</pre>
+
+<p>Se usar uma porta alta local (maior ou igual a 1024), não requer root.</p>
+<pre>
+$ ssh -L 1434:localhost:143 ruda@d00dz.org
+</pre>
+
+<p>Ou usar mais de uma porta.</p>
+<pre>
+$ ssh -L 14343:localhost:143 -L 2525:localhost:25 ruda@d00dz.org
+</pre>
+
+<p>Disponibiliza o SMTP do gmail localmente na porta 2525, usando o d00dz.org como um gateway seguro.</p>
+<pre>
+$ ssh -L 2525:smtp.gmail.com:587 d00dz.org
+</pre>
+
+<h2>sysctl</h2>
+<pre>
+$ sysctl user.cs_path
+user.cs_path = /usr/bin:/bin:/usr/sbin:/sbin
+</pre>
+
+<pre>
+$ sudo sysctl -w user.cs_path=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin
+user.cs_path: Operation not permitted
+</pre>
+
+
+<h2 id="svn">Subversion (Revision Control System)</h2>
+<p>Depois de resolver um conflito em um arquivo, pode acontecer...</p>
+<pre>
+$ <strong>svn commit compendio.html</strong>
+svn: Commit failed (details follow):
+svn: Aborting commit: '/Volumes/40GB/source/compendio.html' remains in conflict
+$ <strong>svn status compendio.html</strong>
+C      compendio.html
+</pre>
+
+<p>Para marcar o <em>status</em> do arquivo como resolvido:</p>
+<pre>
+$ svn resolved compendio.html
+Resolved conflicted state of 'compendio.html'
+</pre>
+<p>Agora é possível fazer o <em>commit</em>.</p>
+
+
+<h2 id="top">Top</h2>
+<p>Ordena por memória residente (RSIZE) ocupada, do maior uso para o menor.</p>
+<pre>
+$ top -o rsize
+</pre>
+
+<p>Inverte a ordem, do menor uso para o maior.</p>
+<pre>
+$ top -o +rsize 
+</pre>
+
+<p>Ordena primeiro por RSIZE e depois por VSIZE.</p>
+<pre>
+$ top -o rsize -O vsize
+</pre>
+
+<p>Programas GUI similares ao top no Mac <a href="file:///Applications/Utilities/Activity Monitor.app">Activity Monitor</a> e <a href="file:///Developer/Applications/Performance Tools/BigTop.app">BigTop</a>.</p>
+
+<h2 id="vim">Vim</h2>
+<p>Navegação <code>hjkl</code>, esquerda, pra baixo, pra cima, direita. Ir para a próxima página <code>control+f</code>, para a página anterior <code>control+b</code>.</p>
+
+<p>Ir para o início da linha <code>0</code>, o <code>^</code> corre pro início do primeiro caracter não-branco, ir para o fim da linha <code>$</code>.</p>
+
+<p>Ir para a primeira linha do arquivo <code>1G</code> ou <code>:1</code>, ir para a última linha do arquivo <code>G</code> ou <code>:$</code>.</p>
+
+<p>Completar string <code>control+n</code> ou <code>control+p</code>.</p>
+<p>Em múltiplos arquivos, o próximo arquivo <code>:n</code> e o arquivo anterior <code>:N</code>. Infelizmente <code>:p</code> não é para voltar a um arquivo (previous), mas para imprimir a linha corrente.</p>
+
+<h2 id="webdev">Web Developer</h2>
+
+<p>No Safari 3.1.1 para Macintosh é possível ativar as ferramentas de Web Develop em: Safari, Preferences..., Advanced, Show Develop menu in menu bar. Outra alternativa é através da linha de comando.</p>
+<pre>
+$ <strong>defaults write com.apple.Safari IncludeDebugMenu 1</strong>
+</pre>
+
+<p>No Safari 3.1.1 em Windows, Edit, Preferences..., Advanced, Show Develop menu in menu bar.</p>
+
+<p>O Internet Explorer 7 possui uma extensão com recurso de Web Develop em <a href="http://www.microsoft.com/downloads/details.aspx?familyid=e59c3964-672d-4511-bb3e-2d5e1db91038&displaylang=en">Internet Explorer Developer Toolbar</a>.</p>
+
+<h2 id="ua">Forjando um User Agent</h2>
+
+<p>No Firefox, about:config, click com botão direito, Nova opção, String, general.useragent.override e só inserir a string de UA do browser desejado.</p>
+
+<p>No Safari é preciso somente ativar as ferramentas de Web Develop, para utilizar o recurso de troca de User Agent via menu.</p>
+
+
+</body>
+</html>

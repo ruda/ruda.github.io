@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="pt_BR">
+<head>
+  <title>O Processador de Macros m4</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Rudá Moura">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+</head>
+<body>
+  <section>
+<h1>O Processador de Macros m4</h1>
+
+<a name="intro"><h2>Introdução</h1></a>
+O m4 é um <i>processador de macros</i>. O seu funcionamento é bastante simples, ele recebe um fluxo de caracteres (stream) na entrada padrão (uma linha por vez) e ecoa diretamente a saída padrão. O m4 pode estender esse comportamento ao definir-se strings especiais chamadas de <i>macros</i> que realizam alguma ação com o fluxo, como por exemplo trocar uma string por outra ou inserir o conteúdo de um outro arquivo.
+
+<p>Exemplo de seção interativa com o m4.
+<pre>
+$ m4
+hello
+<i>hello</i>
+define(hello,sallut)
+ 
+hello dharma!
+<i>sallut dharma!</i>
+</pre>
+
+<p>Entretanto é mais comum passar ao m4 um ou mais arquivos, geralmente de extensão <i>.m4</i>, contendo texto puro e algumas definições em m4 e redirecionar o resultado desse processamento a algum outro arquivo, como em:
+
+<pre>
+$ m4 definicoes.m4 meu-texto.txt &gt;arquivo.html
+</pre>
+
+<a name="sintaxe"><h2>Elementos Sintáticos</h1></a>
+Um <i>nome</i> é uma string constituída de números, letras maiúsculas ou minúsculas e o sublinhado _, o primeiro caracter não pode ser um número (como na expressão regular <code>[_a-zA-Z][_0-9a-zA-Z]*</code>). São nomes válidos: <code>foo, _bar, baz123, __prefix__</code>.
+
+<p> Um <i>nome escapado</i> (do original <i>quoted</i>) é uma string delimitada por acento grave <code>&#96;</code> e aspas simples <code>'</code>, o efeito é retornar literalmente o nome sem os delimitadores e não avaliar o seu valor (veja a seguir). Então <code>&#96;hello'</code> retorna <code>hello</code> e <code>&#96;&#96;hello''</code> retorna <code>&#96;hello'</code>.
+
+<p>Uma <i>macro</i> é definida pela string <code>define(<i>nome</i>,<i>corpo</i>)</code>. Em tempo de execução ao receber a string <i>nome</i> o processador irá substituí-la pela string contida no <i>corpo</i> da definição, por isso é necessário escapar o nome e o corpo da macro para que não haja a substituição textual de nome e corpo antes da definição.
+
+<p>Uma macro pode receber <i>parâmetros</i>, cada um deles estão disponíveis como <code>$1</code> (primeiro parâmetro), <code>$2</code> (segundo parâmetro), ..., <code>$9</code> (nono parâmetro). O nome da macro é obtida via <code>$0</code>. Uma <i>chamada de macros com parâmetros</i> é feita através da forma <code>macro(arg1, arg2, ..., arg9)</code>.
+
+<p>Por exemplo
+<pre>
+define(`ARGS2', ``macro: $0, argumento1: $1, argumento2: $2'')
+
+ARGS2
+<em>macro: ARGS2, argumento1: , argumento2: </em>
+ARGS2()
+<em>macro: ARGS2, argumento1: , argumento2: </em>
+ARGS2(um)
+<em>macro: ARGS2, argumento1: um, argumento2: </em>
+ARGS2(um,dois)
+<em>macro: ARGS2, argumento1: um, argumento2: dois</em>
+ARGS2(um,dois,tres)
+<em>macro: ARGS2, argumento1: um, argumento2: dois</em>
+</pre>
+
+<p>E para concluir, todos os outros caracteres são retornados como eles mesmo, não recebendo tratamento especial.
+
+<a name="macros"><h2>Macros Pré-Definidas</h1></a>
+O m4 possui um conjunto padrão de macros, vejamos algumas delas.
+
+<a name="dnl"><h2>dnl</h2></a>
+Formalmente <i>deleting whitespace in input</i> ou apaga (despreza) o que vier em seguida. É a forma de comentar alguma parte do texto em m4. Pode ser utilizado também ao final de algumas macros para suprimir o <i>new line</i> que a utilização dessas macros geram.
+
+<pre>
+dnl Esta linha é um comentário.
+define(`TITLE', `Minha Página Pessoal')dnl
+</pre>
+
+<h2><a name="define"></a>define(nome,corpo)</h2>
+Define a macro <i>nome</i> com o <i>corpo</i>. Por via de regra, é melhor ao definir uma macro escapar o nome e o corpo para evitar efeitos colaterais indesejados.
+<pre>
+define(`foo', `é uma metavariável')
+define(`swap', ``$2$1'')
+</pre>
+
+<h2><a name="include"></a>include(arq)</h2>
+Inclui o conteúdo do arquivo <i>arq</i> ao fluxo corrente de texto.<br>
+<pre>
+include(default.m4)
+</pre>
+
+<h2><a name="changequote"></a>changequote(s,t)</h2>
+Redefine os caracteres de escape para <i>s</i> e <i>t</i> respectivamente. Use <code>changequote</code> sem parâmetros para voltar ao padrão.<br>
+<pre>
+changequote({,})dnl
+define({concat}, {{$1$2}})dnl
+changequote
+</pre>
+
+<h2><a name="esyscmd"></a>esyscmd(cmd)</h2>
+Executa um shell com o comando <i>cmd</i> e retorna a saída do comando como uma string.
+<pre>
+define(`__TODAY__', esyscmd(LANG=pt_BR date))dnl
+</pre>
+
+<a name="conclusao"><h2>Conclusão</h1></a>
+O m4 é de uma simplicidade encantadora mas pode revelar algumas armadilhas no seu uso, principalmente com expressões não escapadas. Um erro básico é cometido quando se faz referência ao próprio nome da macro numa definição:
+
+<pre>
+define(`foo', `foo é uma metavariável')
+</pre>
+Esta definição está errada, o certo é escapar duas vezes para proteger, como em:
+<pre>
+define(`foo', ``foo é uma metavariável'')
+</pre>
+
+Na dúvida consulte a página info do m4 (<code>info m4</code>), ela é uma amiga valiosa.
+
+</section>
+
+<footer>
+© 1999-2004 Rudá Moura. Última atualização: Dom Out 31 21:10:58 BRT 2004
+</footer>
+
+  </body>
+</html>
+

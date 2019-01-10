@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Screen Properties</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Rudá Moura">
+    <meta name="copyright" content="2019">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+    <link rel="icon" href="favicon.ico">
+  </head>
+  <body>
+    <table>
+      <caption>Screen properties</caption>
+      <tr>
+        <th>Name</th>
+        <th>Property</th>
+        <th>Value</th>
+      </tr>
+      <tr>
+        <td>Maximum width</td>
+        <td>window.screen.width</td>
+        <td id="maxw">?</td>
+      </tr>
+      <tr>
+        <td>Maximum height</td>
+        <td>window.screen.height</td>
+        <td id="maxh">?</td>
+      </tr>
+      <tr>
+        <td>Available width</td>
+        <td>window.screen.availWidth</td>
+        <td id="availw">?</td>
+      </tr>
+      <tr>
+        <td>Available height</td>
+        <td>window.screen.availHeight</td>
+        <td id="availh">?</td>
+      </tr>
+      <tr>
+        <td>Color depth</td>
+        <td>window.screen.colorDepth</td>
+        <td id="color">?</td>
+      </tr>
+      <tr>
+        <td>Pixel depth</td>
+        <td>window.screen.pixelDepth</td>
+        <td id="pixel">?</td>
+      </tr>
+      <tr>
+        <td>Pixel ratio</td>
+        <td>window.devicePixelRatio</td>
+        <td id="ratio">?</td>
+      </tr>
+    </table>
+    <script>
+      window.onload = function() {
+        var els = [
+          {id: "maxw",   value: window.screen.width},
+          {id: "maxh",   value: window.screen.height},
+          {id: "availw", value: window.screen.availWidth},
+          {id: "availh", value: window.screen.availHeight},
+          {id: "color",  value: window.screen.colorDepth},
+          {id: "pixel",  value: window.screen.pixelDepth},
+          {id: "ratio",  value: window.devicePixelRatio}
+        ];
+        for (var i = 0; i < els.length; i++) {
+          var el = document.getElementById(els[i].id);
+          el.textContent = els[i].value;
+        }
+      }
+    </script>
+  </body>
+</html>

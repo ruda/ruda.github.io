@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+  <title>jonesforth para Macintel</title>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="image" content="favicon.ico">
+  <link rel="icon" type="image/png" href="favicon.ico">
+  <meta name="author" content="Rudá Moura">
+  <meta name="description" content="Port do interpretador FORTH jonesforth para Macintosh Intel.">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+  <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+<h1 id="jonesforth-para-macintosh-intel">Jonesforth para Macintosh Intel</h1>
+
+<p>O <a href="http://ruda.github.io/jonesforth-macintel/">jonesforth-macintel</a> é uma reimplementação que fiz para Macintosh Intel (32 bits) do <a href="https://rwmj.wordpress.com/2010/08/07/jonesforth-git-repository/">jonesforth</a>, que é um interpretador FORTH escrito em Assembly i386 para Linux. O projeto está hospetado no GitHub em <a href="https://github.com/ruda/jonesforth-macintel">github.com/ruda/jonesforth-macintel</a>.</p>
+
+<p>De volta aos anos 80, a maioria dos computadores de 8 bits da época iniciavam com o interpretador BASIC, por ser uma linguagem fácil de aprender. O BASIC entretanto, era uma linguagem muito limita e o uso da linguagem assembly, principalmente dos processadores Z-80 e 6509, era necessário para o desenvolvimento de programas mais interessantes.</p>
+
+<p>Um interpretador FORTH parecia ser mais adequado a esses sistemas de recursos modestos, por estar mais próximo do nível da máquina; mas a verdade é que FORTH nunca pegou nessas computadores de 8 bits. Foi somente nos anos 90, com o OpenFirmware é que FORTH ganhou espaço nas workstations Unix, como as da Sun Microsystems.</p>
+
+<p>Falo de brincadeira aos meus amigos que gostaria de construir uma máquina do tempo e reescrever a história, para fazer com que FORTH conseguisse ser a linguagem padrão das máquinas de 8 bits, removendo os danos causados por aprender BASIC :)</p>
+
+<p>Enquanto isso não for possível de acontecer, eu resolvi aproveitar uma implementação de FORTH simples e de bom entendimento para o meu Macintosh, e esta é a razão do port do jonesforth para o Macintel: <em>celebrar o passado mas pensando no presente</em>.</p>
+
+<h2 id="como-utilizar-o-jonesforth">Como Utilizar o jonesforth?</h2>
+<p>Compile o interpretador diretamente com o GCC (requer a instalação do XCode) através do comando:</p>
+
+<pre>$ gcc -m32 -nostdlib jonesforth-macintel.s -o jonesforth
+</pre>
+
+<p>Para executar o interpretador é necessário incluir as palavras adicionais (WORDs) definidas no <code>jonesforth.f</code> e também a entrada padrão, necessário para receber os comandos do usuário, como em:</p>
+
+<pre>$ cat jonesforth.f - | ./jonesforth 
+JONESFORTH VERSION 47
+OK
+." Hello World!" 
+Hello World!
+1 2 + .
+3 
+BYE
+</pre>
+
+<p>Perdido em FORTH? Eu recomendo ler o artigo (em Inglês) <a href="http://www.murphywong.net/hello/simple.htm">Simple Forth</a> que é um ótimo tutorial sobre a linguagem.</p>
+
+<h2 id="consideraes-sobre-o-port">Considerações sobre o Port</h2>
+<p>A parte fácil do port é que a arquitetura é a mesma, Intel x86. Seria mais difícil portar para uma arquitetura diferente, como as RISCs PowerPC ou ARM, devido as mudanças de opcodes, registradores e demais idiossincrasias de arquitetura.</p>
+
+<p>O Linux utiliza o GNU assembler, enquanto o Macintosh utiliza um assembler Mach-O, que se assemelha com o GNU Assembler, o que ajudou no processo do port. Tive que ler o manual de ambos os assemblers para entender as semelhantes e diferenças – ainda bem que haviam mais semelhanças.</p>
+
+<p>O processo de port pode ser divido em três grandes frases: a primeira fase foi fazer com que o port compilasse no meu Mac. A segunda fase consistiu em remover as primeiras falhas de segmentações e core dumps básicos. A terceira fase foi o polimento do interpretador, permitindo que ele se comportasse igual a versão Linux.</p>
+
+<p>Em todas as fases do processo eu pude contar com o depurador GDB, que foi a ferramenta importantíssima para que o port tivesse êxito, particularmente gostei do comando <code>x</code>, que faz um dump ou exame de uma região de memória/registradores e do comando <code>info reg</code>, que exibe o estado de todos os registradores da máquina.</p>
+
+<p>A diferença fundamental entre a versão Linux e Mac é maneira com que se faz as chamadas de sistema (syscalls). No Linux os parâmetros pra syscall são postos em registradores, e no  Macintosh (que segue os BSDs) são postos na pilha. Eu escrevi um um artigo que explica as chamadas de sistema no Macintosh: <a href="syscall.html">Chamadas de Sistema (syscalls) no Mac OS X</a>.</p>
+
+<p>Ports relacionados:</p>
+
+<ul>
+  <li><a href="http://www.lshift.net/blog/2007/10/04/jonesforth-ported-to-powerpc-and-mac-os-x">JONESFORTH ported to PowerPC and Mac OS X</a></li>
+  <li><a href="http://subvert-the-dominant-paradigm.net/blog/?p=54">jonesforth64</a></li>
+</ul>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>HTML Snippets</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="image" content="favicon.ico">
+    <meta name="author" content="Rudá S. T. de Moura">
+    <meta name="description" content="Here is some basic HTML snippets.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+  <h1>HTML Snippets</h1>
+  <p>Here is some basic HTML snippets I use.</p>
+  <h2>Begin of HTML document</h2>
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Rudá Moura&lt;/title&gt;
+    &lt;meta http-equiv="content-type" content="text/html; charset=UTF-8"&gt;
+    &lt;meta name="author" content="Rudá S. T. de Moura"&gt;
+    &lt;meta name="description" content="It's more fun to compute!"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;link rel="stylesheet" type="text/css" href="css/normalize.css"&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+</pre>
+
+<h2>End of HTML document</h2>
+
+<pre>  &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+
+<h2>Icon Site (Favicon)</h2>
+
+<p>How to include a favicon.</p>
+
+<pre>&lt;link rel="icon" 
+      type="image/png" 
+      href="/path/to/media/favicon.png" /&gt;</pre>
+
+<p>Rules to follow when including a favicon:</p>
+
+<ul>
+  <li>All browsers support ICO format.</li>
+  <li>All browsers (but IE) support PNG, GIF, JPEG formats.</li>
+  <li>A few browsers support animated GIFs, APNG, SVG formats.</li>
+</ul>
+
+<p>If you don’t declare <code>link rel="icon"</code> then the browser may fetch <code>/favicon.ico</code> automatically.</p>
+
+<p>Reference: <a href="https://www.w3.org/2005/10/howto-favicon">W3C: How to Add a Favicon to your Site</a>.
+
+<h2>CSS</h2>
+
+<p>How to include an external CSS file to the HTML document.</p>
+<pre>&lt;link rel="stylesheet" type="text/css" href="css/normalize.css"&gt;</pre>
+
+<p>How to include CSS inside the HTML document.</p>
+<pre>&lt;style&gt;
+  body { background: Snow; color: #111; }
+&lt;/style&gt;
+</pre>
+
+<p>Note:</p>
+<ul>
+  <li>Default value of attribute <code>type</code> is <code>text/css</code> so you don’t need to include in <code>link</code> or <code>style</code> elements.</li>
+  <li>Default value of attribute <code>media</code> is <code>all</code> (for all media types – screen or print).</li>
+</ul>
+
+<p>How to set CSS style in a HTML element. Use the <em>style</em> attribute.</p>
+
+<pre>&lt;p style="color: red; background: yellow;"&gt;Hello there!&lt;/p&gt;
+</pre>
+
+<h2>Javascript</h2>
+
+<p>How to test if Javascript is enabled or disabled in browser.</p>
+
+<pre>&lt;noscript&gt;
+  &lt;p&gt;Javascript is disabled&lt;/p&gt;
+&lt;/noscript&gt;
+</pre>
+
+<p>How to include Javascript external to the HTML document.</p>
+
+<pre>&lt;script src="http://code.jquery.com/jquery-1.5.2.min.js"&gt;&lt;/script&gt;
+</pre>
+
+<p>Include Javascript inside the HTML document.</p>
+
+<pre>&lt;script&gt;
+  alert("Javascript is enabled");
+&lt;/script&gt;
+</pre>
+
+<p>Some attributes that can be used in <code>&lt;scripts&gt;</code> are:</p>
+
+<ul>
+  <li><code>type</code> is the language of the script, default value is <code>text/javascript</code>.</li>
+  <li><code>charset</code> alternative character encoding, for example, <code>iso-8859-1</code> (latin1).</li>
+</ul>
+
+<h2>Full page with no margins</h2>
+<p>Reset page in order to use all space available.</p>
+
+<pre>
+body { margin: 0; border: 0; padding: 0; }
+</pre>
+
+<h2>How to center the body of the HTML</h2>
+<pre>
+body { margin: 0 auto; width: 70%; }
+</pre>
+
+<h2>Page with two columns</h2>
+
+<p>How to use “two columns” in HTML with DIV and floats.</p>
+
+<pre>&lt;div style="float: left;  width: 50%;"&gt;Lorem ipsum…&lt;/div&gt;
+&lt;div style="float: right; width: 50%;"&gt;Lorem ipsum…&lt;/div&gt;
+</pre>
+
+<div style="float:left; width:50%;">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</div>
+<div style="float:right; width:50%;">Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</div>
+<div style="clear:both;"></div>
+
+<h2>Clearing the effect of two columns</h2>
+
+<p>Create another <code>div</code> element and set the style to <code>clear:both</code> to clear floats.</p>
+
+<pre>&lt;div style="clear:both;"&gt;&lt;/div&gt;
+</pre>
+
+  </body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="pt_BR">
+<head>
+  <title>Página do Rudá Moura :: Diferença Entre Arquivos & Patches</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Rudá Moura">
+  <link rel="stylesheet" href="css/normalize.css" type="text/css">
+  <link rel="stylesheet" href="css/site.css" type="text/css">
+</head>
+<body>
+
+<center><h1>Diferença Entre Arquivos & Patches</h1></center>
+
+<h1><a name="intro"></a>Introdução</h1>
+O comando <i>diff</i> é utilizado para gerar diferenças entre dois arquivos. O seu uso é aconselhável para desenvolvedores de software porque permite visualizar ou enviar para um terceiro somente as partes modificadas e não um arquivo inteiro. Imagine em um projeto grande, que contenha arquivos de vários KBs o quanto essa ferramenta pode ser útil.
+
+<p>O comando <i>patch</i> é a ferramenta inversa do diff. Ele recebe um arquivo, geralmente de extensão <i>.diff</i> ou <i>.patch</i>, e aplica as correções indicadas.
+
+<h1><a name="diff"></a>Diff</h1>
+Na prática o modo padrão que o diff gera não é usado, no seu lugar usa-se os modos <i>unified</i> (<code>-u</code>, <code>--unified</code>) ou <i>context</i> (<code>-c</code>). Neste documento usaremos o modo unified.
+
+<h2><a name="diff2"></a>Diferença Entre Dois Arquivos</h2>
+Primeiro o arquivo original chamado de <i>hello.c</i>
+<pre>
+/*
+ * hello.c
+ */
+
+main()
+{
+  printf("hello!\n");
+}
+</pre>
+
+Agora o arquivo já modificado, chamado de <i>hello-novo.c</i>
+<pre>
+/*
+ * hello.c
+ */
+
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[])
+{
+  printf("hello!\n");
+  return 0;
+}
+</pre>
+
+Após a execução do comando <code>diff -u hello.c hello-novo.c &gt;hello.patch</code>, este arquivo irá conter
+<pre>
+--- hello.c	2003-11-24 19:10:16.000000000 -0200
++++ hello-novo.c	2003-11-24 19:48:32.000000000 -0200
+@@ -2,7 +2,10 @@
+  * hello.c
+  */
+ 
+-main()
++#include &lt;stdlib.h&gt;
++
++int main(int argc, char *argv[])
+ {
+   printf("hello!\n");
++  return 0;
+ }
+</pre>
+
+Vejamos agora o significado de cada uma dessas linhas
+<ul>
+<li><code>--- hello.c</code> é o arquivo original;
+<li><code>+++ hello-novo.c</code> é o arquivo modificado;
+<li><code>@@ -2,7 +2,10 @@</code> é o contexto da modificação.
+  <ul>
+  <li>O -2 e +2 é o fuzzy factor, ignoremos por aqui, mas significa quantas linhas antes ou depois o patch ainda irá aplicar sem reclamar;
+  <li>O 7 é a linha original (começa por 1) do fonte e o 10 é para aonde irá a linha com as modificações.
+  </ul>
+<li>O prefixo <code>-</code> significa a exclusão de linha;
+<li>O prefixo <code>+</code> indica a inclusão de linhas;
+<li>O resto permanece o mesmo.
+</ul>
+
+<h2><a name="diffdir"></a>Diferença De Arquivos Entre Dois Diretórios</h2>
+Para um conjunto maior de alterações não faz sentido gerar patch individuais, é mais fácil alterar os arquivos de uma árvore e no fim gerar um patch com todas as modificações reunidas. A sintaxe do comando diff torna-se então
+<pre>
+diff -urN diretório_original diretório_modificado
+</pre>
+Essas flags tem o seguinte significado:
+<ul>
+<li><code>-u</code> unified, como já visto;
+<li><code>-r</code> recursive, caminha em todos os arquivos e subdiretórios;
+<li><code>-N</code> New, leva em conta os novos arquivos criandos 
+</ul>
+
+<h1><a name="patch"></a>Patch</h1>
+O patch aceita um arquivo através da entrada padrão e o uso mais simples dele é executá-lo dentro de um diretório contendo arquivos fontes de uma versão prévia e aplicar o patch para obter uma versão alterada do fonte, possivelmente corrigindo algum bug ou simplesmente atualizando os fontes para uma versão mais nova, como em:
+<pre>
+$ cd hello
+$ patch &lt;../hello-novo.patch
+</pre>
+
+<h1><a name="resumo"></a>Resumo</h1>
+Para criar um patch
+<pre>
+$ tar zxvf hello-1.2.3.tar.gz
+$ cp -r hello-1.2.3 hello-1.2.3.ORIG	# mantenho uma cópia original
+$ cd hello-1.2.3
+$ vim hello.c	# faço as minhas mudanças
+$ cd ..
+$ diff -Nur hello-1.2.3.ORIG hello-1.2.3 &gt;hello-novo.patch
+</pre>
+
+<p>Para aplicar um patch
+<pre>
+$ tar zxvf hello-1.2.3.tar.gz	# pego uma cópia da versão antiga
+$ cd hello-1.2.3
+$ patch &lt;../hello-novo.patch	# ok, versão nova
+</pre>
+
+<div class="copyright">
+<br>© 1999-2004 Rudá Moura. Última atualização: Dom Out 31 21:10:58 BRT 2004
+
+</div>
+</body>
+</html>
+

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+    <title>Python Bindings</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="image" content="favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.ico">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Criando bindings no Python.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+    <section>
+<h1>Python Bindings</h1>
+
+<p id="intro"><strong><em>Binding</em>? O que é isso e para que serve?</strong></p>
+
+<p>Um <em>binding</em> é literalmente a ligação ou ponte entre dois sistemas. No caso de <em>bindings</em> para Python, chama-se de <em>extensão</em> a ligação entre bibliotecas desenvolvidas em C ou C++ para o uso direto no interpretador Python.</p>
+
+<img src="images/py-ext.png" align="right">
+
+<p>Para fazer uma extensão, é necessário “embrulhar” (<em>wrap</em>) a API da biblioteca através de métodos que são expostos por uma API definida em C do Python.</p>
+
+<p>Por que eu devo fazer uma extensão em Python? O que ganho com isso? Talvez o motivo seja...</p>
+
+<ul>
+  <li>Deseja-se a integração com sistemas legados, afinal de contas C está a mais tempo em uso do que Python e podemos escrever o restante do projeto somente em Python;</li>
+  <li>Deseja-se aproveitar a base de código em C/C++ existente em um ambiente e conviver <em>em harmonia</em>, provavelmente porque esses sistemas continuarão a existir em C de qualquer maneira, mas podemos fazer uso deles em Python;</li>
+  <li>Deseja-se melhorar o desempenho de um programa re-escrevendo partes dele em Python na linguagem C e incorporando como um módulo de extensão;</li>
+  <li>Deseja-se fazer <em>scripts</em> de teste de uma biblioteca em C/C++, automatizando o processo de testes somente com a linguagem Python;</li>
+  <li>Porque C é bom para coisas de baixo-nível e Python para as coisas de alto-nível.</li>
+</ul>
+
+<p>O propósito desse artigo é apresentar um <em>wrapper</em> em cima da biblioteca <code>readline</code> ou <code>libedit</code> nos sistemas BSD, por ser de fácil implementação e ter boa disponibilidade nos sistemas Unix; só é bom lembrar que o interpretador Python já provê a mesma funcionalidade com o modulo <code>readline</code>.</p>
+
+<p id="c-api"><strong>Python C API</strong></p>
+
+<p>Para trabalhar com a API de extensões deve-se incluir o cabeçalho <code>Python.h</code>, este arquivo inclui “de brinde” os cabeçalhos <code>stdio.h</code>, <code>string.h</code>, <code>errno.h</code>, 
+<code>limits.h</code> e <code>stdlib.h</code>.</p>
+
+<p>Na Python C API, todos os nomes visíveis de símbolos começam com o prefix <code>Py</code> e os nomes internos têm como prefixo <code>_Py</code>. A API disponibiliza um tipo opaco <code>PyObject</code> (na verdade um ponteiro para esse tipo) que é análogo aos objetos em Python.</p>
+  
+<p>Os objetos <code>PyObject</code> vivem sempre na memória <em>heap</em>, a exceção à regra são os objetos <code>PyTypeObject</code> declarados como <code>static</code>.</p>
+
+<p>Todo o <code>PyObject</code> possuem um tipo associado e são os elementos utilizados como argumentos e retorno de valores para o interpretador. São definidas macros especiais para testar os tipos, por exemplo <code>PyList_Check(array)</code> retorna verdadeiro ou falso se a variável <code>array</code> for do tipo lista.</p>
+
+<p>Como os objetos vivem na heap, é necessário fazer o controle manual de referências, através das macros <code>Py_INCREF</code> e <code>Py_DECREF</code>, essa é uma tarefa propensa a erros de vazamento de memória.</p>
+
+<p>Vamos parar um pouco com a teoria e ir para prática. No arquivo de inclusão  <code>readline.h</code> podemos ver a declaração das funções:</p>
+<pre>
+char *readline(const char *);
+int add_history(const char *);
+</pre>
+<ul>
+  <li>A função <code>readline()</code> espera a entrada de dados do usuário, até que seja finalizada por um ENTER (que não é armazenado), o resultado é uma <em>string</em> pré-alocada com os dados digitados. O parâmetro da função é um <em>prompt</em> que é impresso para o usuário.</li>
+  <li>A função <code>add_history</code> acrescenta o parâmetro no histórico do usuário. Útil para permitir voltar o histórico, como faz a linha de comando do shell Bash.</li>
+</uL>
+
+<p>Vejamos como fazer o <em>wrapper</em> de <code>readline()</code></p>
+<pre>
+#include &lt;Python.h&gt;
+#include &lt;readline/readline.h&gt;
+
+PyObject *
+fn_readline(PyObject *self, PyObject *args)
+{
+  char *prompt;
+  char *line;
+  PyObject *o;
+
+  if (!PyArg_ParseTuple(args, &quot;s&quot;, &amp;prompt))
+    return NULL;
+
+  <strong>line = readline(prompt);</strong>
+  
+  o = Py_BuildValue(&quot;s&quot;, line);
+  free(line);
+
+  return o;
+}
+</pre>
+<ul>
+  <li><code>PyObject* funcao(PyObject *self, PyObject *args)</code> é a forma geral de qualquer função ou método (por isso o <em>self</em>) emcapsulado pela API em C;</li>
+  <li><code>PyArg_ParseTuple</code> “desempacota” um objeto Python para uso em C. Neste caso, o argumento da função é uma tupla, mas o parâmetro que queremos é uma <em>string</em>;</li>
+  <li>Retornar o valor <code>NULL</code> sinaliza ao interpretador uma condição de erro;</li>
+  <li><code>Py_BuildValue</code> é utilizado para construir (“embrulhar”) um novo objeto Python (um PyObject *) a partir de elementos em C. neste caso, uma string em Python a partir de uma string em C;</li>
+  <li>A resposta de <code>readline()</code> na variável <code>line</code> deve ser desalocada para evitar vazamento de memória.</li>
+  <li>O retorno da função é obviamente um <code>PyObject</code>.</li>
+</ul>
+
+<p>Continuaremos para a função <code>add_history()</code>:</p>
+<pre>
+PyObject *
+fn_add_history(PyObject *self, PyObject *args)
+{
+  char *line;
+  int status;
+  PyObject *o;
+
+  if (!PyArg_ParseTuple(args, &quot;s&quot;, &amp;line))
+    NULL;
+
+  <strong>status = add_history(line);</strong>
+
+  o = Py_BuildValue(&quot;i&quot;, status);
+  return o;
+}
+</pre>
+<p>Basicamente igual a função anterior, a única diferença é o retorno de um valor inteiro em vez de uma string. Esse valor não tem muita importância, poderia-se retornar um None, mas o None possui uma peculiaridade, vejamos...</p>
+<pre>
+// Versão alternativa, retorna None
+
+PyObject *
+fn_add_history(PyObject *self, PyObject *args)
+{
+  char *line;
+
+  if (!PyArg_ParseTuple(args, &quot;s&quot;, &amp;line))
+    NULL;
+
+  add_history(line);
+
+  <strong>Py_INCREF(Py_None); 
+  return Py_None; </strong>
+}
+</pre>
+<p>O idioma para retorna um objeto <code>None</code> exige o controle referências. Não se deve confundir o retorno de <code>NULL</code>, que repassa uma condição de erro com o retorno de <code>None</code>, que é um valor perfeitamente normal.</p>
+
+<p>O que falta para finalizar o binding é a declaração de quais são as funções que o módulo disponibiliza e sua iniciação, vejamos agora.</p>
+
+<pre>
+static PyMethodDef
+methods[] = {
+  {&quot;readline&quot;, fn_readline, METH_VARARGS, NULL},
+  {&quot;add_history&quot;, fn_add_history, METH_VARARGS, NULL},
+  {NULL, NULL, 0, NULL}
+};
+
+PyMODINIT_FUNC
+initreadline(void)
+{
+  (void) Py_InitModule(&quot;readline&quot;, methods);
+}
+</pre>
+
+<img src="images/py-c-api.png" align="right">
+
+<p>Já temos tudo o que é necessário para o binding, está na hora de gerar o módulo para uso no Python, esta linha de compilação funciona no Mac OS X, para o Linux troque <code>-dynamiclib</code> por <code>-PIC</code>.</p>
+<pre>
+$ gcc -dynamiclib -I/usr/include/python2.5 -lpython -lreadline mod_readline.c -o readline.so
+</pre>
+
+<p>Testando...</p>
+<pre>
+&gt;&gt;&gt; import readline
+&gt;&gt;&gt; dir(readline)
+[&#x27;__doc__&#x27;, &#x27;__file__&#x27;, &#x27;__name__&#x27;, &#x27;add_history&#x27;, &#x27;readline&#x27;]
+&gt;&gt;&gt; line = readline.readline(&quot;prompt$ &quot;)
+prompt$ Sisters of Mercy
+&gt;&gt;&gt; print line
+Sisters of Mercy
+&gt;&gt;&gt; readline.add_history(&quot;Bird On The Wire&quot;)
+0
+&gt;&gt;&gt; readline.add_history(&quot;So Long, Marianne&quot;)
+0
+&gt;&gt;&gt; readline.readline(&quot;] &quot;)
+] <em>seta para cima navega no histórico</em>
+</pre>
+
+<p>Quais são as vantagens de se usar a API em C?</p>
+<ul>
+  <li>Controle e integração total com C e C++ e o interpretador Python;</li>
+  <li>Desempenho, pois não há camadas de abstrações adicionais entre a biblioteca e o interpretador;</li>
+  <li>Permite trabalhar com módulos, classes, exceções e vários elementos de Python em termos de C.</li>
+</ul>
+
+<p>Quais são as desvantagens?</p>
+<ul>
+  <li>Processo trabalhoso, pois exige conhecimentos avançados de C</li>
+  <li>Sujeito a erros durante o desenvolvimento, pois exige o gerênciamento de memória por parte de quem implementa</li>
+</ul>
+
+<p id="swig"><strong>SWIG</strong></p>
+
+<p>O SWIG (Simplified Wrapper and Interface Generator) é um sistema que permite gerar bindings de bibliotecas em C ou C++ para diversas linguagens de programação, em especial olharemos os requisitos de uso do SWIG para a linguagem Python.</p>
+
+<p>O SWIG é um projeto maduro, surgiu em 1995 e praticamente automatiza o processo de criação de módulos de extensão em Python.</p>
+
+<p>O processo de geração dos bindings começa com a definição de um arquivo contendo as inclusões das bibliotecas que se deseja fazer o binding, além de outra seção que permite filtrar quais elementos da biblioteca serão expostos para os bindings.</p>
+
+<p>O SWIG trabalha diretamente com os arquivos <code>#include</code>, portanto um bom conhecimento de C faz-se necessário. Em baixo nível, o SWIG gera código em C de cola para a API em C do Python.</p>
+
+<p>O resultado do processamento do utilitário <code>swig</code> é um arquivo em C que deve ser compilado e linkado diretamente com a biblioteca que se deseja fazer binding e o arquivo em Python que expõe a API como um módulo em Python.</p>
+
+<p>Arquivo de interface <code>readline.i</code> do binding para o SWIG. Este arquivo possui três partes lógicas:</p>
+<ul>
+  <li>A primeira parte contém <code>%module</code> que define qual será o nome do módulo para Python;</li>
+  <li>A segunda parte,  entre <code>%{ ... %}</code> é reservado para arquivos de inclusão;</li>
+  <li>O que segue na terceira parte, define qual elementos da API estamos interessados em expor para Python.</li>
+</ul>
+
+<p>Embora o arquivo <code>readline.h</code> contenha várias funções e variáveis, nós só estamos interessados apenas em expor as funções <code>readline()</code> e <code>add_history()</code>.</p>
+<pre>
+// readline.i
+
+%module readline
+
+%{
+#include &lt;readline/readline.h&gt;
+%}
+
+char *readline(const char *);
+int add_history(const char *);
+</pre>
+
+
+
+<p>O  processo completo para a geração do binding é então:</p>
+
+<pre>
+$ swig -python readline.i
+$ gcc -c readline_wrap.c  -I/usr/include/python2.5
+$ gcc -dynamiclib readline_wrap.o -lpython -lreadline -o _readline.so
+</pre>
+
+<img src="images/swig.png" align="right">
+
+<p>No caso do exemplo de readline, são gerados o arquivo em C <code>readline_wrap.c</code> e o módulo em Python que se chama <code>readline.py</code>.</p>
+
+<p>Exemplo de uso:</p>
+<pre>
+&gt;&gt;&gt; import readline
+&gt;&gt;&gt; readline.add_history(&quot;quit&quot;)
+0
+&gt;&gt;&gt; line = readline.readline(&quot;] &quot;)
+] quit  <em>tecla para cima</em>
+&gt;&gt;&gt; print line
+quit
+&gt;&gt;&gt; print type(line)
+&lt;type &#x27;str&#x27;&gt;
+</pre>
+
+<p>A maneira mais fácil de usar o SWIG é incluir literalmente o conteúdo do arquivo ou dos arquivos de inclusão da biblioteca que se deseja fazer o binding no arquivo de interface, pode ser um tiro certo fazer isso. Algo como:</p>
+<pre>
+%module readline
+
+%{
+#include &lt;readline/readline.h&gt;
+#include &lt;readline/history.h&gt;
+%}
+
+%include /usr/include/readline/readline.h
+%include /usr/include/readline/history.h
+</pre>
+<p>Infelizmente o processo falha miseravelmente, mas não é objetivo desse artigo explicar o porque.</p>
+
+<p>Quais são as vantagens do SWIG?</p>
+<ul>
+  <li>Praticamente automatiza o processo de fazer <em>bindings</em> com C/C++;</li>
+  <li>Reconhece os elementos de C++, como classes, templates e exceções;</li>
+  <li>Permite gerar bindings para diversas linguagens, como Perl, Scheme, TCL e PHP, não é só para Python.</li>
+</ul>
+
+<p>Quais são as desvantagens do SWIG?</p>
+<ul>
+  <li>O arquivo de <em>wrap</em> em C gerado como resultado não é feito para “consumo humano”, deve-se sempre usar o arquivo de definição <code>.i</code>, caso contrário é melhor usar um <em>binding</em> direto com a API em C.</li>
+  <li>Trabalhar com bibliotecas que utilizam <em>callbacks</em> pode ser uma dor de cabeça.</li>
+</ul>
+
+    </section>
+  </body>
+</html>

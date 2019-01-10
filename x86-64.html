@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>x86_64</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Rudá Moura">
+    <meta name="copyright" content="2019">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+<h1>x86-64</h1>
+
+<h2>True</h2>
+<pre>$ otool -tV /usr/bin/true 
+/usr/bin/true:
+(__TEXT,__text) section
+0000000100000f33	pushq	%rbp
+0000000100000f34	movq	%rsp, %rbp
+0000000100000f37	xorl	%edi, %edi
+0000000100000f39	callq	0x100000f3e</pre>
+
+<h2>False</h2>
+<pre>$ otool -tV /usr/bin/false 
+/usr/bin/false:
+(__TEXT,__text) section
+0000000100000f30	pushq	%rbp
+0000000100000f31	movq	%rsp, %rbp
+0000000100000f34	movl	$0x1, %edi
+0000000100000f39	callq	0x100000f3e</pre>
+
+<h2>Sync</h2>
+<pre>$ otool -tV /bin/sync 
+/bin/sync:
+(__TEXT,__text) section
+0000000100000f40	pushq	%rbp
+0000000100000f41	movq	%rsp, %rbp
+0000000100000f44	callq	0x100000f56
+0000000100000f49	xorl	%edi, %edi
+0000000100000f4b	callq	0x100000f50</pre>
+
+<h2>Yes</h2>
+<pre>$ otool -tV /usr/bin/yes 
+/usr/bin/yes:
+(__TEXT,__text) section
+0000000100000e64	pushq	%rbp
+0000000100000e65	movq	%rsp, %rbp
+0000000100000e68	pushq	%rbx
+0000000100000e69	pushq	%rax
+0000000100000e6a	movq	%rsi, %rbx
+0000000100000e6d	cmpl	$0x2, %edi
+0000000100000e70	jl	0x100000e7d
+0000000100000e72	movq	0x8(%rbx), %rdi
+0000000100000e76	callq	0x100000e8e
+0000000100000e7b	jmp	0x100000e72
+0000000100000e7d	leaq	0x114(%rip), %rbx
+0000000100000e84	movq	%rbx, %rdi
+0000000100000e87	callq	0x100000e8e
+0000000100000e8c	jmp	0x100000e84</pre>
+
+
+<hr>
+
+<pre>$ cat true.c
+int main(void) { return 0; }
+
+$ cc -Os -S -emit-llvm -fomit-frame-pointer -fno-asynchronous-unwind-tables true.c
+$ cat true.ll
+; ModuleID = 'true.c'
+source_filename = "true.c"
+target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-apple-macosx10.11.0"
+
+; Function Attrs: norecurse nounwind optsize readnone ssp
+define i32 @main() #0 {
+  ret i32 0
+}
+
+attributes #0 = { norecurse nounwind optsize readnone ssp "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="core2" "target-features"="+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+ssse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+!llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
+
+!0 = !{i32 1, !"PIC Level", i32 2}
+!1 = !{!"Apple LLVM version 8.0.0 (clang-800.0.42.1)"}
+
+$ cc -Os -S -fomit-frame-pointer -fno-asynchronous-unwind-tables true.c
+$ cat true.s
+	.section	__TEXT,__text,regular,pure_instructions
+	.macosx_version_min 10, 11
+	.globl	_main
+_main:                                  ## @main
+## BB#0:
+	xorl	%eax, %eax
+	retq
+
+
+.subsections_via_symbols
+</pre>
+  </body>
+</html>
+

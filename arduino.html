@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>Arduino com Macintosh</title>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="image" content="favicon.ico">
+  <link rel="icon" type="image/png" href="favicon.ico">
+  <meta name="author" content="Rudá Moura">
+  <meta name="description" content="O básico necessário pra entender e utilizar um Arduino Duemilanove com um Macintosh.">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+    <section>
+  <h1>Arduino com Macintosh</h1>
+<p>Há alguns meses atrás, fiquei empolgando em mexer novamente com eletrônica e resolvi comprar um <a href="http://www.arduino.cc/en/Main/ArduinoBoardDuemilanove">Arduino Duemilanove</a>. Este modelo possui uma microcontroladora <a href="http://www.atmel.com/devices/atmega328.aspx">ATmega328</a>, conector de energia de corrente contínua 5V, USB do tipo de impressora, 6 portas analógicas (ANALOG IN), 14 portas de I/O (DIGITAL) – I/O ou E/S (Entrada/Saída) – sendo que 6 compartilhadas para PWM.</p>
+
+<p>O Arduino pode receber alimentação via USB ou do <em>plug</em> de 5V, não há necessidade de configurar pois a seleção é automática. Recebendo energia, o LED PWR (verde) fica acesso indicando e sempre ao (re-)iniciar (<em>reset</em>) o Arduino, os LEDs TX (verde), RX (laranja) e L (vermelho) piscam e depois se apagam, como em um teste.</p>
+
+<p>É possível alimentar o Arduino com pilha ou bateria, mas ainda não tive nenhuma experiência a este respeito. Por enquanto, ele não passa fome e se alimenta bem na rede elétrica, com uma fonte que retirei de um <em>switch ethernet</em> doméstico de 7,5V (a alimentação é mais flexível do que os 5V).</p>
+
+<p>Com todas essas características de interfaceamento do Arduino, é fácil entender porque existem vários tipos de expansões para ele, como bluetooth, ethernet, LCD, sensores e que mais for possível imaginar. E é essa comunicação com o mundo real é que é o grande barato do Arduino. Muitos projetos de automação de casas e robôs têm como base um Arduino, é só procurar.</p>
+
+<h3>Configuração do Mac</h3>
+
+<p>O Duemilanove requer a instalação de um <em>driver USB serial</em> para o Mac OS X, que é descrito como um <a href="http://www.ftdichip.com/Drivers/VCP.htm">FTDI VCP driver</a>, a versão que tenho é a 2.2.18 de 2012-08-10. Meu Macintosh para o uso com o Arduino é um Macbook de 2006 (Intel) que roda o Mac OS 10.6.8. O driver funciona direito neste Mac. Tenho um Macbook Pro de 2009 com Mountain Lion, mas nunca testei a instalação desse driver. Confesso que fiquei um pouco com receio, por achar que o mesmo pudesse começar a gerar problemas com essa máquina, que uso profissionalmente.</p>
+
+<p>A <a href="http://arduino.cc/en/Main/Software">IDE do Arduino</a> (Arduino.app versão 1.0.1) é uma aplicação gráfica para Mac e proporciona a interação com o Arduino. Dentro da IDE, configurei o modelo do meu Arduino (Tools > Board > Arduino Duemilanove w/ AT mega328) e a porta serial (Tools > Serial port > /dev/tty.usbserial-A400f1lw) a ser utilizada.</p>
+
+<h3>Harvard x Von Neumann</h3>
+
+<p>Costumo falar (em tom de brincadeira) pro meu amigo <a href="http://www.epx.com.br">Elvis (epx)</a></em> que os computadores de 8-bits dos anos 80 deveriam vir com essas portas de expansão (digital e analógica) e a facilidade de uso que o Arduino proporciona, pois assim poderiam ter sido mais úteis!</p>
+
+<p>Voltando ao presente, diferente dos computadores de desktop a microcontroladora do Arduino é de arquitetura <em>Harvard</em>, isto quer dizer que a memória de programas e a memória de dados são diferentes e de tamanhos diferentes. Os computadores de desktop são todos de arquitetura <em>Von Neumann</em>, pois os programas e dados compartilham a mesma memória.</p>
+
+<p>O modelo que adquiri possui 32KB de memória Flash (2KB são de uso do bootloader), 2KB de SRAM e 1KB de EEPROM. O <em>clock</em> do sistema é de 16MHz. É possível consultar o diagrama esquemático do Arduino para identificar os compoenntes.</p>
+
+<h3>Programação</h3>
+
+<p>A programação do Arduino se realiza através da IDE com a edição de código em C, que é traduzido para a linguagem de máquina da microcontroladora. Os passos necessários para programar um Arduino são estes:</p>
+<ol>
+  <li>Edição de código em C;</li>
+  <li>Compilação/Verificação (atalho do teclado ⌘R) do código;</li>
+  <li>Upload (atalho do teclado ⌘U) do executável para o Arduino.</li>
+</ol>
+
+<p>Mesmo com o Arduino de fábrica piscando, resolvi pegar o exemplo em C de piscar o LED (File > Examples > Basic > Blink ) e subir novamente para o Arduino, o único requisito para isso acontecer foi ter o Arduino conectado com o meu Mac, via cabo USB. Após compilar e subir o código, o Arduino estava novamente piscando o LED interno.</p>
+
+<p>Para se acostumar com a programação do Arduino, recomendo olhar os várias exemplos de código que estão disponíveis na IDE. São exemplos simples que demonstram todos os recursos de interfaceamento. Os aplicativos do Arduino desenvolvidos com a IDE são chamados de <em>sketches</em>.</p>
+
+<h4>Programando os LEDs</h4>
+
+<p>O pino 13 de I/O possui em paralelo um resistor de 1k e um LED (L) vermelho ligado no Vcc. No meu caso, a plaquinha já veio com o programa de piscar o LED carregado, foi só ligar na energia pra ver piscar. Pelo fato de ter um resistor de 1k no pino 13, é fácil fazer um LED externo piscar, basta conectar a <em>perna</em> com o chanfro (parte cortada) do LED no terra (GND) e a outra <em>perna</em> na porta 13 de I/O, o mesmo código vai fazer piscar ambos os LEDs.</p>
+
+<p>Para conectar mais LEDs nas portas de I/O, conecte a perna com o chanfro do LED no terra (conectar em GND) e noutra perna, conecte um resistor de 1k para o pino de dados. Quem estudou um pouco de eletrônica sabe que o LED só vai queimar se passar uma corrente maior do que o LED suporta, por isso o resistor de 1k.</p>
+
+<h4>setup &amp; loop</h4>
+
+<p>Programar em C no Arduino é simples mas um pouco diferente da programação normal em desktops. Ao invés de termos uma função <em>main()</em> como ponto de entrada, temos duas funções que devemos implementar: <a href="http://www.arduino.cc/en/Reference/setup">setup()</a> e <a href="http://www.arduino.cc/en/Reference/loop">loop()</a>. A função <code>setup()</code> é responsável por configurar o que for necessário toda a vez que o Arduino iniciar ou fizer <em>reset</em>. A função <code>loop()</code> é sempre executada pela controladora, e é aonde se põe a lógica de programação que se quer fazer ao Arduino. Esse <em>laço infinito</em> não vai queimar, desperdiçar ou aquecer a CPU.</p>
+
+<script src="https://gist.github.com/3938543.js"> </script>
+
+<p>Neste exemplo, o pino 13 é configurado para OUTPUT. Note que fazer um sinal alto (HIGH) em um pino é ativar 5V nele, como efeito o LED acende. Fazer o sinal baixo (LOW) é por 0V e vai apagar o LED.</p>
+
+<p>Para quem tem um pouco de receio de mexer com o Arduino, recomendo alterar o parâmetro de <a href="http://www.arduino.cc/en/Reference/delay">delay()</a> para ver o resultado, pois é seguro fazer e dá uma certa confiança para outras aventuras.</p>
+
+<h3>E Depois?</h3>
+
+<p>O Arduino é fácil de usar, mesmo para quem não tem muita experiência com eletrônica. É claro que como se está mexendo com hardware é sempre possível queimar a plaquinha, mas faz parte do jogo. Existem muitas possibilidades com o Arduino mesmo com as limitação de não ser um computador genérico como o Raspberry Pi. Mas para controlar e interfacear com coisas externas, cumpre muito bem.</p>
+
+<p>Não foi explorado nesse artigo a utilização das portas analógicas, muito menos a utilização de comunicação serial com o Arduino via USB ou <a href="http://dailylearningnotes.blogspot.com.br/2010/03/arduino-components-icsp-6-pin-header.html">ICSP</a>. Aliás, os LEDs TX e RX que citei inicialmente são os indicadores de transmissão (TX) e recepção (RX) de dados da interface serial, que estão disponíveis via pinos RX e TX.</p>
+
+<table>
+  <tr>
+    <td><a href="images/20120722_235917.jpg">
+	<img class="img-polaroid" width="128" src="images/20120722_235917.jpg"></a></td>
+    <td><a href="images/20120723_112746.jpg">
+	<img class="img-polaroid" width="128" src="images/20120723_112746.jpg"></a></td>
+    <td><a href="images/20120723_112810.jpg">
+	<img class="img-polaroid" width="128" src="images/20120723_112810.jpg"></a></td>
+    <td><a href="images/20120723_112833.jpg">
+	<img class="img-polaroid" width="128" src="images/20120723_112833.jpg"></a></td>
+  </tr>
+</table>
+    </section>
+  </body>
+</html>

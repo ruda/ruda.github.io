@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+    <title>Gráficos de Desempenho com ApacheBench & GnuPlot</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="image" content="favicon.ico">
+    <link rel="icon" type="image/png" href="favicon.ico">
+    <meta name="author" content="Rudá Moura">
+    <meta name="description" content="Que tal analisar dados representativos de acesso HTTP, através de um gráfico de desempenho? Com os utilitários ab e GNUPlot isto é possível.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css"> 
+    <link rel="stylesheet" type="text/css" href="css/site.css"> 
+  </head>
+  <body>
+  <section>
+  <h1 id="graficos-de-desempenho-com-apachebench-amp-gnuplot">Gráficos de Desempenho com ApacheBench &amp; GnuPlot</h1>
+
+<p>Que tal analisar dados representativos de acesso HTTP obtidos de uma URL, através de um gráfico de desempenho? Com os utilitários <a href="http://httpd.apache.org/docs/2.2/programs/ab.html">ApacheBench</a> e <a href="http://www.gnuplot.info/">GnuPlot</a> isto é possível. Este artigo descreve como fazê-lo, utilizando um pouco de transformações na linha de comando.</p>
+
+<p><img src="http://www.google.com.br/logos/2011/brazil_day-2011-hp.jpg" alt="Brazil Day 2011" /></p>
+
+<h2 id="apachebench">ApacheBench</h2>
+
+<p>Para testar 200 requisições simples (sem concorrência) HTTP a URL da imagem acima, do Doodle do dia da Independência (2011), utiliza-se o ApacheBench (comando <code>ab</code>) da seguinte forma:</p>
+
+<pre>$ ab -e csv -g tsv -n 200 http://www.google.com.br/logos/2011/brazil_day-2011-hp.jpg
+</pre>
+
+<p>Notas:</p>
+
+<ul>
+  <li>Para um teste de verdade de desempenho, é melhor usar muitas requisições, como 1000, 2000, 5000 ou até mesmo 10000;</li>
+  <li>Deve-se também testar com múltipla concorrência, use <code>-c 10</code> para testar com 10 requisições simultâneas, ou <code>-c 100</code> para fazer 100 requisições ao mesmo tempo.</li>
+</ul>
+
+<p>Ao final dos testes é apresentado um resumo da execução, que por si só já é interessante para análise. Procure certificar-se que os testes não falharam, antes de tirar alguma conclusão.</p>
+
+<p>Como vamos fazer gráficos dos dados coletados, teremos nos arquivos <code>csv</code> e <code>tsv</code>  informações mais completas e complexas, do que o resumo apresentado na tela de execução do comando <code>ab</code>.</p>
+
+<p>O arquivo <code>csv</code> contém as amostragens do tempo de resposta, por porcentagem das requisições:</p>
+
+<pre>$ head csv
+Percentage served,Time in ms
+0,515.535
+1,519.431
+2,519.942
+3,520.477
+4,521.312
+5,521.526
+6,521.768
+7,521.903
+8,521.999
+</pre>
+
+<p>O arquivo <code>tsv</code> contém os tempos de resposta de cada requisição submetida:</p>
+
+<pre>$ head tsv
+starttime	seconds	ctime	dtime	ttime	wait
+Wed Sep 07 18:09:44 2011	1315429784	37	479	516	176
+Wed Sep 07 18:10:21 2011	1315429821	41	478	519	176
+Wed Sep 07 18:10:55 2011	1315429855	41	478	519	176
+Wed Sep 07 18:10:04 2011	1315429804	42	478	520	176
+Wed Sep 07 18:10:44 2011	1315429844	41	479	520	177
+Wed Sep 07 18:10:24 2011	1315429824	41	479	520	177
+Wed Sep 07 18:11:17 2011	1315429877	42	479	520	176
+Wed Sep 07 18:10:16 2011	1315429816	42	479	521	177
+Wed Sep 07 18:09:44 2011	1315429784	41	480	521	178
+</pre>
+
+<p>Legenda para esses campos:</p>
+
+<ol>
+  <li><code>starttime</code> Data e hora da requisição;</li>
+  <li><code>seconds</code> <em>Timestamp</em>  da requisição (o mesmo que <code>starttime</code>);</li>
+  <li><code>ctime</code> <em>Connection Time</em>, tempo até estabelecer a conexão (latência);</li>
+  <li><code>dtime</code> <em>Processing Time</em>, tempo de processamento da requisição;</li>
+  <li><code>ttime</code> <em>Total Time</em>, tempo total da requisição (ctime + dtime);</li>
+  <li><code>wait</code> <em>Waiting Time</em>, tempo de espera até receber o primeiro byte.</li>
+</ol>
+
+<p>Todos estes tempos estão medidos em milisegundos (ms) ou seja, 1/1000 do segundo.</p>
+
+<h2 id="filtragem">Filtragem</h2>
+
+<p>O GnuPlot recebe os dados numéricos em um formato padronizado, algo como apenas <strong>dados numéricos em colunas separadas por tabulações</strong>. Os dois arquivos gerados com o comando <code>ab</code> possuem alguns detalhes que precisam ser modificados, antes de serem úteis para o GnuPlot.</p>
+
+<p>Ambos os arquivos geram um cabeçalho de descrição de campo, na primeira linha de cada arquivo, portanto é necessário removê-los.</p>
+
+<p>Os dados do arquivo <code>csv</code> estão separados por vírgula, enquanto que dados do arquivo <code>tsv</code> estão separados por tabulações. No arquivo <code>csv</code> é preciso remover a primeira linha (cabeçalho) e separar por tabulações, ao invés de vírgulas:</p>
+
+<pre>$ tail -n +2 csv | tr ',' '\t' &gt; data1
+</pre>
+
+<p>Já no arquivo <code>tsv</code>, deve-se remover o cabeçalho (a primeira linha) e para facilitar, também remover a primeira coluna, que contém a data expressa de maneira textual, pois é redundante com a segunda coluna, que é a mesma data e hora em formato de <em>timestamp</em> do Unix.</p>
+
+<pre>$ tail -n +2 tsv | cut -f 2-6 &gt; data2
+</pre>
+
+<p>Resumindo, o arquivo <code>data1</code> contém os dados do arquivo <code>csv</code> e o arquivo <code>data2</code> contém os dados do arquivo <code>tsv</code> processados para o GnuPlot.</p>
+
+<h2 id="gnuplot">GnuPlot</h2>
+
+<p>Para traçar o gráfico dos dados disponíveis no arquivo <code>data1</code>, faz-se:</p>
+
+<pre>$ gnuplot
+gnuplot&gt; plot "data1"
+</pre>
+
+<p><img src="images/gnuplot1.png" alt="plot1" /></p>
+
+<p>Para gerar o gráfico em um arquivo PNG, ao invés de desenhar na tela, faz-se:</p>
+
+<pre>$ gnuplot
+gnuplot&gt; set terminal png
+gnuplot&gt; set output "plot.png"
+gnuplot&gt; plot "data1"
+</pre>
+
+<p>Pode-se acrescentar um título para o gráfico, rótulos para os eixos e uma malha (<em>grid</em>):</p>
+
+<pre>gnuplot&gt; set title "Brasil 2011"
+gnuplot&gt; set xlabel "Total (%)"
+gnuplot&gt; set ylabel "Resposta (ms)"
+gnuplot&gt; plot "data1" title "requisicoes"
+</pre>
+
+<p><img src="images/gnuplot2.png" alt="plot2" /></p>
+
+<p>Para utilizar o formato de barras:</p>
+
+<pre>gnuplot&gt; plot "data1" using 2 title "requisicoes" with boxes
+</pre>
+
+<p>Nota: <code>using 2</code> quer dizer: use os dados que estão contidos na coluna 2.</p>
+
+<p><img src="images/gnuplot3.png" alt="plot3" /></p>
+
+<p>Vamos tratar agora dos dados do outro arquivo. A primeira coluna é um <em>timestamp</em>; uma data tem leitura especial pelo GnuPlot, uma máscara de leitura (%s para timestamp) se faz necessário, conforme abaixo:</p>
+
+<pre>$ gnuplot
+gnuplot&gt; set xlabel "Hora (mm:ss)"
+gnuplot&gt; set ylabel "Resposta (ms)"
+gnuplot&gt; set xdata time
+gnuplot&gt; set timefmt "%s"
+gnuplot&gt; plot "data2" using 1:2 title "tempo de conexao", \
+              "data2" using 1:4 title "tempo total"
+</pre>
+
+<p>Vários comandos <code>plot</code> podem ser utilizados, sempre separados por vírgula, e serão exibidos dentro de um mesmo gráfico.</p>
+
+<p><img src="images/gnuplot4.png" alt="plot4" /></p>
+
+<h2 id="concluso">Conclusão</h2>
+
+<p>É mais fácil avaliar o desempenho de um novo sistema ou de uma nova configuração, se dispomos de um gráfico para comparar as mudanças. Pode-se fazer gráficos interessantes com o GnuPlot, a partir dos dados do ApacheBench, conforme este artigo procurou mostrar.</p>
+
+<p>Para traçar gráficos utilizando uma abordagem mais programática, recomendo olhar a biblioteca <a href="http://matplotlib.sourceforge.net/">matplotlib</a>, disponível para a linguagem Python. GnuPlot é mais interessante como ferramenta interativa.</p>
+
+<p>Outras ferramentas gráficas para Mac OS X, que permitem explorar dados numéricos são <a href="http://guides.macrumors.com/Grapher">Grapher.app</a>, pré-instalado no Mac OS X e <a href="http://www.omnigroup.com/products/omnigraphsketcher">OmniGraphSketcher</a>, software comercial.</p>
+  </section>
+  </body>
+</html>

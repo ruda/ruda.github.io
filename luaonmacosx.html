@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+    <title>Running Lua on macOS</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Rudá S. T. de Moura">
+    <meta name="description" content="Learn how to install and use the latest version of Lua on your Macintosh.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+    <section>
+<h1>Running Lua on macOS</h1>
+<p><a href="http://www.lua.org/">Lua</a> is a lightweight programming language and has good reputation among game engines. In this article, you will learn how to install and use the latest version of Lua (5.2.x) on Mavericks, Mountain Lion, Lion or Snow Leopard.</p>
+
+<h2 id="how-to-install">How to Install</h2>
+
+<p><a href="http://rudix.org/">Rudix</a> provides Lua pre-compiled packages for Mavericks, Mountain Lion, Lion and Snow Leopard.
+The page you will going to access is <a href="http://rudix.org/packages/lua.html">rudix.org/packages/lua.html</a>.</p>
+
+<img src="images/luainstall.png">
+
+<p>After you download, double click the package and follow the installation instructions.</p>
+
+<h3 id="default-installation-path">Default installation path</h3>
+<p>Lua will be installed under <code>/usr/local/</code> and the full path for the Lua interpreter will be <code>/usr/local/bin/lua</code>, but you don’t need to type the full path every time you want to call Lua, it’s OK just to type <code>lua</code> on the Terminal to get the interpreter.</p>
+
+<p>Important files:</p>
+
+<pre>/usr/local/bin/lua
+/usr/local/include/lua.h
+/usr/local/lib/liblua.a
+/usr/local/share/doc/lua/readme.html
+/usr/local/share/man/man1/lua.1
+</pre>
+
+<h3 id="security-note-for-mountain-lion-and-mavericks">Security note for Mountain Lion and Mavericks</h3>
+
+
+<p>On Mountain Lion and Mavericks things are a bit hard, you will probably get <strong>“lua-5.2.1-0.pkg” can’t be opened because it is from an unidentified developer</strong>. This means that the package was not registered with Apple – but you can choose to trust Rudix developers (I’m the author) and install anyway.</p>
+
+<img src="images/luacantbeopened.png">
+
+<p>Here is how to bypass once your security settings:</p>
+
+<ol>
+  <li>Press the <code>Control</code> key and click the package.</li>
+  <li>Choose <em>Open</em> from the pop-up menu.</li>
+  <li>Click <em>Open</em> button.</li>
+</ol>
+
+<p>Now follow the installation instructions.</p>
+
+<h2 id="testing-lua">Testing Lua</h2>
+<p>Test if your installation is OK by printing “Hello World!”.</p>
+
+<pre>lua
+Lua 5.2.1  Copyright (C) 1994-2012 Lua.org, PUC-Rio
+&gt; print ("Hello World!")
+Hello World!
+</pre>
+
+<p>Type <kbd>Control</kbd>+<kbd>D</kbd> to exit.</p>
+    </section>
+  </body>
+</html>

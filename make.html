@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="pt_BR">
+<head>
+  <title>Utilizando O GNU Make</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Rudá Moura">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+</head>
+<body>
+<section>
+
+<h1>Utilizando O GNU Make</h1>
+
+
+<h2><a name="intro">Introdução</a></h1>
+A tarefa de manter manualmente quais partes de um programa precisam ser recompilados devido a alguma alteração nos arquivos fontes é monótona e sujeita a erros. Para automatizar essa tarefa o Unix dispõe da ferramenta <i>make</i>.
+
+<p>O make trabalha a partir de um arquivo que contém regras que descrevem como reconstruir outros arquivos caso os seus fontes sofram alguma modificação. Para verificar se algum arquivo sofreu modificação o make vai consultar a data de atualização de cada um dos arquivos envolvidos e tomar alguma ação caso sejam diferentes entre si.
+
+<p>Ao invocar o make na linha de comando, este vai procurar no diretório corrente um arquivo de nome <code>Makefile</code> ou <code>makefile</code> e carregar as instruções contidas nele. Um Makefile é feito basicamente de regras que podem ser escolhidas ou não de acordo com parâmetros que oferecemos.
+
+<p>O GNU make é a versão da Free Software Fundation para o make.
+
+<p>Exemplos de uso do make:
+<pre>
+$ make foo.o    # recompila o módulo foo.o (a partir de um foo.c)
+$ make hello    # compila o programa hello
+$ make install  # instala
+</pre>
+
+<h2><a name="sintaxe">Elementos Sintáticos</a></h1>
+<h2><a name="comentarios">Comentários</a></h2>
+Um <i>comentário</i> começa com o símbolo <code>#</code> e o seu conteúdo é desprezado até ao final da linha.
+<pre>
+# Makefile:
+#   Isto é um comentário.
+</pre>
+
+<h2><a name="vars">Variáveis</a></h2>
+Uma <i>variável</i> é declarada como em <code>variável = conteúdo</code>. O conteúdo é obtido através da sintaxe <code>$(variável)</code>.
+<pre>
+PREFIX = /usr/local
+SOURCES = foo.c bar.c baz.c
+echo $(PREFIX)
+gcc $(SOURCES) -o prog
+</pre>
+
+<h2><a name="regras">Regras</a></h2>
+Uma <i>regra</i> é a estrutura que dá "movimento" a um Makefile, sua forma é:
+<pre>
+<i>objetivo</i>: <i>dependências</i>
+	<i>ação</i>
+</pre>
+Essa regra simplesmente informa que, para fazer o <i>objetivo</i>, as <i>dependências</i> devem estar desatualizadas. Se pelo menos uma das dependências estiver desatualizada, toma-se então a <i>ação</i> para deixar o objetivo coerente novamente. Por exemplo:
+<pre>
+foo: foo.c foo.h
+	gcc foo.c -o foo
+</pre>
+<p>O arquivo foo depende dos arquivos foo.c e foo.h. Se algum desses arquivos sofrer modificações então ao executar o comando <code>make foo</code> a ação <code>gcc foo.c -o foo</code> será executada.
+
+<p>Uma regra pode conter uma lista de dependências vazia, neste caso a ação será sempre tomada. A ação inclusive pode estar vazia, essa forma é utilizada quando se deseja desencadear ações em cascata com outras dependências. Como em:
+<pre>
+all: listargs hello
+
+listargs: listargs.c
+	gcc listargs.c -o listargs
+
+hello: hello.c hello.h
+	gcc hello.c -o hello
+</pre>
+
+<p>Nota: É essencial utilizar-se de <code>&lt;TAB&gt;</code> no campo da ação, em um arquivo do make pois espaços nesse caso são considerados como erro de sintaxe.
+
+<h2><a name="exemplo">Um Makefile Completo</a></h1>
+<pre>CC = gcc
+CFLAGS = -Wall -ansi -c
+#DEBUG = -g
+LD = gcc
+#LDFLAGS = -lm
+
+PREFIX = /usr/local
+BINDIR = $(PREFIX)/bin
+
+all: listargs
+
+main.o: main.c write.h
+	$(CC) $(CFLAGS) $(DEBUG) main.c
+
+write.o: write.c write.h
+	$(CC) $(CFLAGS) $(DEBUG) write.c
+
+listargs: main.o write.o
+	$(LD) $(LDFLAGS) main.o write.o -o listargs
+
+install: all
+	install -m755 listargs $(BINDIR)/listargs
+
+clean:
+	rm *.o *.c~ core listargs
+</pre>
+<small>Baixe o <a href="example.mk">example.mk</a> e renomeie para Makefile.</small>
+
+<p>Exemplos de uso:
+<pre>
+$ make main
+$ make
+$ make install
+$ make PREFIX=/usr install
+$ make -n install
+$ make -f example.mk
+$ make clean
+</pre>
+
+</section>
+
+<footer>
+© 1999-2004 Rudá Moura. Última atualização: Dom Out 31 21:10:58 BRT 2004
+</footer>
+
+</body>
+</html>
+

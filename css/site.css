@@ -1,0 +1,90 @@
+/*! site.css v2019 | MIT License | Written by Rudá Moura */
+
+/* Document */
+
+html {
+  background-color: Snow;
+  line-height: 1.5; }
+
+body {
+  background-color: White;
+  color: Black;
+  font-family: "Helvetica Neue", Verdana, Arial, Helvetica, sans-serif;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  margin-left: auto;
+  margin-right: auto;
+  width: 85%;
+  height: 100%;
+  border-radius: 3px; }
+
+h1, h2, h3 { line-height: 1.15; color: inherit; }
+h1 { font-size: 130%; border-bottom: 1px solid LightGray; }
+h2 { font-size: 110%; }
+h3 { font-size: 105%; }
+
+/* Grouping content */
+
+hr { border: 3px solid Snow; }
+
+code, kbd, pre, samp { font-family: "Courier", monospace; font-size:95%; }
+kbd {
+  border: 1px solid LightGray;
+  border-radius: 3px;
+  padding: 5px; }
+pre {
+  padding: 0.5em;
+  line-height: 1.25;
+  background-color: PeachPuff;
+  border: 1px solid GoldenRod;
+  border-radius: 3px; }
+
+/* Embbeded content */
+
+img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto; }
+
+table { margin: auto; }
+tr {}
+th {}
+td {}
+
+dt {}
+dd { margin-top: 0.5em; margin-bottom: 1em; }
+
+blockquote { border-left: 1px solid LightGray; }
+
+address { display: inline; }
+
+/* HTML5 */
+
+article {}
+
+header {
+  padding:3px;
+  padding-left:1em;
+  border:1px solid IndianRed;
+  border-radius:30px;
+  font-family:Helvetica Neue, Verdana, Arial, Helvetica, sans-serif;
+  color:Snow;
+  background:lightcoral; }
+
+section {
+  padding:1em;
+  text-align:left; }
+
+footer {
+  background-color:Snow;
+  padding-top:1em;
+  font-family:Helvetica Neue, Verdana, Arial, Helvetica, sans-serif;
+  text-align:center; }
+
+/* Other */
+
+#ytplayer {
+  margin:1em;
+  border:3px solid LightGray;
+  float:right; }
+@media screen and (max-width: 800px) { #ytplayer { display:none; } }

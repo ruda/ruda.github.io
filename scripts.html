@@ -1,0 +1,92 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="pt_BR">
+<head>
+  <title>Executando Programas Interpretados (Scripts)</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Rudá Moura">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+</head>
+<body>
+
+<section>
+
+<h1>Executando Programas Interpretados (Scripts)</h1>
+
+<a name="intro"><h2>Introdução</h2></a>
+Existem algumas maneiras de se executar um programa escrito em uma linguagem
+interpretada como Python, Perl e TCL, a partir do próprio shell
+do sistema. Geralmente esses programas são chamados de <i>scripts</i>
+nesse contexto e na prática um script é considerado pelo sistema
+tão <i>executável</i> quanto um programa escrito em uma linguagem compilada.
+
+<a name="invocando"><h2>Invocando o Interpretador</h2></a>
+A primeira forma de se executar um programa é oferencendo diretamente ao
+interpretador o nome do programa. Como em:
+<pre>
+$ perl script.pl
+$ python script.py
+</pre>
+
+Parâmetros podem ser passados em seguida ao nome do script.
+<pre>
+$ bash foo.sh abc.txt def.txt
+</pre>
+
+<a name="indica"><h2>A partir de uma indicação no Script</h2></a>
+A segunda forma permite executar um script igual ao que fazemos com um
+programa compilado, digitando apenas o nome dele. Esta forma utiliza-se de
+um artifício que o shell possui, na qual a primeira linha do arquivo
+deve conter identificador mágico seguido do nome do interpretador desejado.
+Este identificador é a seqüência <code>#!</code> seguida do caminho até o
+o executável do interpretador. Tudo isso <b>sempre</b> na primeira
+linha do arquivo.
+
+<p>Por exemplo, use <code>#!/bin/sh</code> para um script em Shell
+ou então <code>#!/usr/bin/python</code> para um script em Python.
+Note que <code>#!/usr/bin/python</code> tem a desvantagem de não
+funcionar em ambientes BSD ou pelo menos tem-se que alterar o <em>path</em>
+para <code>/usr/local/bin</code>. Uma forma de evitar essa pequena complicação
+é usar o comando <i>env</i> para chamar o interpretador, assim a linha de
+um script em Python deve ser:
+
+<pre>
+#!/usr/bin/env python
+#
+# script.py: meu pequeno script
+#
+print "rodei!"
+</pre>
+
+O que acontece se tento executar este script?
+<pre>
+$ ./script.py
+<em>bash: ./script.py: Permissão negada</em>
+</pre>
+
+Oops! O que faltou?
+
+<a name="exec"><h2>Ligando o Modo de Execução</h2></a>
+Somente modificar o script e acrescentar a linha mágica não é o bastante,
+é necessário também ativar o bit de executável para o arquivo. Isso é fácil
+de resolver
+<pre>
+$ chmod +x script.py
+</pre>
+
+Agora é só chamar o script, diretamente
+<pre>
+$ ./script.py
+<em>rodei!</em>
+</pre>
+
+</section>
+
+<footer>
+© 1999-2004 Rudá Moura. Última atualização: Dom Out 31 21:10:58 BRT 2004
+</footer>
+
+</body>
+</html>
+

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/Person">
+  <head>
+  <title>Miscelâneas de C</title>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="image" content="favicon.ico">
+  <link rel="icon" type="image/png" href="favicon.ico">
+  <meta name="author" content="Rudá Moura">
+  <meta name="description" content="Este artigo descreve alguns pontos obscuros da linguagem C e que muitas vezes não são oferecidos ao programador iniciante da linguagem.">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+    <section>
+<h1 id="miscelneas-sobre-a-linguagem-c">Miscelâneas sobre a linguagem C</h1>
+<p>Este artigo descreve alguns pontos obscuros da linguagem C e que muitas vezes não são oferecidos ao programador iniciante da linguagem.</p>
+
+<h2 id="sobre-a-funo-free">Sobre a função free</h2>
+
+<h3 id="free-de-null">free de NULL</h3>
+<p>Segundo o padrão ANSI C, é seguramente válido passar um ponteiro <em>NULL</em> a função de biblioteca <em>free()</em>, portando o trecho de código abaixo não apresenta erro de execução:</p>
+
+<pre>char *buf = NULL;
+free(buf);
+</pre>
+
+<h3 id="duplo-free">Duplo free</h3>
+<p>Entretanto, chamar mais de uma vez a função <em>free()</em> em um mesmo ponteiro (<em>double free</em>) é uma condição anormal, que é devidamente sinalizada pelo sistema operacional. Por exemplo, o código abaixo:</p>
+
+<pre>char *buf = malloc(BUFSIZ);
+free(buf);
+free(buf);
+</pre>
+
+<p>Apresenta a seguinte mensagem de erro no Mac OS X:</p>
+
+<pre>doublefree(5193) malloc: *** error for object 0x7f9b0a000000: pointer being freed was not allocated
+*** set a breakpoint in malloc_error_break to debug
+Abort trap: 6
+</pre>
+
+<p>No Linux, a mensagem de erro também agrega <em>backtrace</em> e <em>dump</em> de memória, o que facilita para achar aonde está o problema:</p>
+
+<pre>*** glibc detected *** ./doublefree: double free or corruption (top): 0x0000000000db8010 ***
+======= Backtrace: =========
+/lib/x86_64-linux-gnu/libc.so.6(+0x7e626)[0x7f3716b0d626]
+./doublefree[0x400572]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xed)[0x7f3716ab076d]
+./doublefree[0x400489]
+======= Memory map: ========
+...
+Aborted (core dumped)
+</pre>
+
+<h3 id="free-em-memria-heap">free em memória heap</h3>
+
+<p>A região de memória que se passa a função <em>free()</em> deve ter sido previamente criada através da função <em>malloc()</em> ou relacionada (ou seja, no <em>heap</em>). O trecho de código abaixo:</p>
+
+<pre>char buf[BUFSIZE];
+free(buf);
+</pre>
+
+<p>Exibe a seguinte mensagem de erro no Mac OS X:</p>
+
+<pre>vectfree(5295) malloc: *** error for object 0x7fff65a587b0: pointer being freed was not allocated
+*** set a breakpoint in malloc_error_break to debug
+Abort trap: 6
+</pre>
+
+<p>E no Linux ocorre uma falha de segmentação (<em>segmentation fault)</em>, porém, durante a compilação, é exibida uma mensagem de aviso importante que sinaliza o erro em execução:</p>
+
+<pre>vectfree.c: In function ‘main’:
+vectfree.c:7:6: warning: attempt to free a non-heap object ‘buf’ [enabled by default]
+</pre>
+
+<h2 id="sobre-o-operador-sizeof">Sobre o operador sizeof</h2>
+
+<h3 id="nmero-de-elementos-de-um-vetor">Número de elementos de um vetor</h3>
+
+<p>O operador <em>sizeof</em> aplicado a um vetor retorna o número de elementos desse vetor, multiplicado pelo tamanho (em bytes) do tipo base desse elemento. Nos exemplos que seguem:</p>
+
+<pre>char buf[1024];
+char *boolean[] = {"True", "False", NULL};
+</pre>
+
+<p>O número de elementos de <em>buf</em> é 1024, pois a expressão <code>sizeof(buf)/sizeof(char)</code> ou 1024/1 que é igual a 1024.</p>
+
+<p>O número de elementos de <em>boolean</em> é 3, conforme o resultado da expressão <code>sizeof(boolean)/sizeof(char*)</code> ou seja, 12/4 = 3.</p>
+
+<p>A macro abaixo é comumente utilizada para obter o número de elementos de um vetor:</p>
+
+<pre>#define NELEM(v) (sizeof(v)/sizeof(v[0]))
+</pre>
+
+<h3 id="tamanho-de-uma-string-em-vetor">Tamanho de uma string em vetor</h3>
+
+<p>O operador <em>sizeof</em> pode ser utilizado para retornar o tamanho de uma string guardada em um vetor. Por exemplo, no código abaixo:</p>
+
+<pre>char str[] = "Hello World!";
+int tam = sizeof(str);  /* tam = 13  (12+1 do \0) */
+</pre>
+
+<p>A variável <em>tam</em> vai conter exatamente o tamanho da string (em bytes). Note que este funcionamento <em>não é portável</em>, pois em codificações que um caracter pode variar em número de bytes (UTF-8, por exemplo), o retorno é o número de bytes totais, e não o número de caracteres.</p>
+
+<p>E cuidado que esta dica <em>só funciona para vetores</em>, quando se usa em ponteiros, o resultado vai ser igual ao tamanho do ponteiro!</p>
+
+<pre>char *s = "Hello World!";
+int tam = sizeof(s);    /* tam = 8 pois é um ponteiro! */
+</pre>
+
+<h2 id="sobre-ponteiros--vetores">Sobre ponteiros &amp; vetores</h2>
+
+<p>Não se pode levar ao pé da letra que um ponteiro em C é estritamente igual a um vetor do mesmo tipo. Um ponteiro <code>char *p</code> pode fazer referência a um vetor <code>char buf[]</code>, porém uma declaração de ponteiro pode ou não estar associado a criação de conteúdo, enquanto que um vetor está associado a criação do conteúdo.</p>
+
+<pre>char octal[8] = {'0', '1', '2', '3', '4', '5', '6', '7'}; /* contém */
+char *p = octal; /* aponta */
+</pre>
+
+<p>Lembrando que o nome do vetor é uma constante e que <em>octal</em> é um endereço de memória equivalente à expressão <code>&amp;octal[0]</code>. O valor da expressão <code>*p</code> é o caracter 0, o valor de <code>*(p+2)</code> é o caracter 2, o valor de <code>p[7]</code> é o caracter 7 e o valor de <code>*(p++)</code> é o caracter 1.</p>
+
+<p>A regra para ponteiro e vetores <code>*(p+n) == p[n] == octal[n]</code> é sempre válida.</p>
+
+<h2 id="sobre-ponteiros-de-funo">Sobre ponteiros de função</h2>
+
+<p>Um dos tópicos que as vezes parece <em>magia negra</em> na linguagem C é a declaração de ponteiros de função. De forma simples, um ponteiro de função é declarado com um asterisco <code>*</code> como prefixo do nome da função, por motivos de precedência entre operadores, deve-se utilizar parênteses para delimitar o nome do ponteiro, por exemplo <code>(*nome_da_funcao)</code>.</p>
+
+<table summary="Exemplos de ponteiros de funções">
+<caption>
+Alguns exemplos de ponteiros de funções.
+</caption>
+<tr>
+<th>Declaração de função</th>
+<th>Declaração de ponteiro de função</th>
+</tr>
+<tr>
+<td>void sync(void);</td>
+<td>void (*ptr_sync)(void) = sync;</td>
+</tr>
+<tr>
+<td>void exit(int);</td>
+<td>void (*ptr_exit)(int) = exit;</td>
+</tr>
+<tr>
+<td>size_t strlen(char *);</td>
+<td>size_t (*ptr_strlen)(char *) = strlen;</td>
+</tr>
+<tr>
+<td>char *strstr(char *, char *);</td>
+<td>char* (*ptr_strstr)(char *, char*) = strstr;</td>
+</tr>
+</table>
+
+<p>Com estas definições, é possível evocar as funções originais através de ponteiros, como em <code>ptr_sync()</code> ou <code>ptr_exit(1)</code> e o mesmo para as demais funções.</p>
+
+<h2 id="sobre-a-funo-qsort">Sobre a função qsort</h2>
+
+<p>A função de biblioteca <code>qsort</code> permite classificar (como em ordenar) um vetor genérico e possui o seguinte protótipo de chamada:</p>
+
+<pre>qsort(void *base,
+      size_t nel,
+      size_t width,
+      int (*compar)(const void *, const void *));
+</pre>
+
+<p>Aonde <em>base</em> é o endereço base do vetor (o nome do vetor), <em>nel</em> é o número de elementos, <em>width</em> é o tamanho de um elemento e <em>compar</em> é uma função de comparação que retorna os inteiros -1, 0 ou +1 conforme a expressão “A-B”.</p>
+
+<h3 id="qsort-com-string">qsort com string</h3>
+
+<p>Exemplo de implementação para a função <code>compar</code> que utiliza comparação de strings.</p>
+
+<pre>int scmp(const void *p1, const void *p2)
+{
+	const char *s1 = *(char **)p1;
+	const char *s2 = *(char **)p2;
+      	return strcmp(s1, s2);
+}
+</pre>
+
+<p>Vamos classificar o vetor <code>char *v[] = {"John", "Paul", "George", "Ringo"}</code> com <code>qsort</code> e a função <code>scmp</code>.</p>
+
+<pre>qsort(v, sizeof(v)/sizeof(v[0]), sizeof(v[0]), scmp);
+</pre>
+
+<p>A função <em>qsort</em> modifica o vetor <code>v</code> (ocorre <em>in place</em>), de forma que o resultado de <em>qsort</em> é o vetor ordenado conforme a regra de <code>compar</code>.</p>
+
+<h3 id="qsort-com-inteiro">qsort com inteiro</h3>
+
+<p>Classificar um vetor de inteiros é muito semelhante, o detalhe está na função de comparação:</p>
+
+<pre>int icmp(const void *p1, const void *p2)
+{
+	int n1 = *(int *)p1;
+	int n2 = *(int *)p2;
+	return n1 - n2;
+}
+</pre>
+
+<p>Infelizmente o código acima pode causar <em>overflow</em> e comparar errado, a solução é utilizar a comparação conforme sugere a macro abaixo:</p>
+
+<pre>#define COMPARE(a, b) (((a) &gt; (b)) - ((a) &lt; (b)))
+</pre>
+
+<p>O retorno correto da função seria então definido como:</p>
+
+<pre>return (n1&gt;n2) - (n1&lt;n2);
+</pre>
+
+<h3 id="ordem-inversa">Ordem inversa</h3>
+
+<p>Para classificar em ordem inversa (ou decrescente) basta alterar a condição de teste da função de comparação.</p>
+
+<h2 id="sobre-o-modelo-ilp32">Sobre o modelo ILP32</h2>
+
+<p>O modelo de programação ILP32 estabelece para os tipos <em>inteiros</em> <code>int</code>, <em>inteiros longos</em> <code>long</code> e <em>ponteiros</em> <code>void *</code> que ambos possuem um tamanho fixo de 32 bits, conforme a sigla indica.</p>
+
+<p>É considerado seguro guardar um inteiro em um ponteiro e vice-versa. São exemplos de sistemas que utilizam o modelo ILP32 o Mac OS X (em 32 bits) e o Linux (em 32 bits).</p>
+
+<p>Para forçar uma compilação em 32 bits, deve-se passar a opção <code>-m32</code> ao compilador GCC.</p>
+
+<h2 id="sobre-o-modelo-lp64">Sobre o modelo LP64</h2>
+
+<p>Uma boa parte dos sistemas Unix de 64 bits, como o Linux e o Mac OS X, adotam o modelo de programação LP64. Neste modelo, os <em>inteiros</em> <code>int</code> possuem 32 bits e os <em>inteiros longos</em> <code>long</code> e <em>ponteiros</em> <code>void*</code> possuem 64 bits, conforme a sigla indica.</p>
+
+<p>Guardar um ponteiro em um tipo inteiro em um ambiente de 64 bits é dar um tiro no pé, e o compilador vai gerar um aviso, mas é considerado seguro guardar um ponteiro em um inteiro longo.</p>
+
+<p>Para forçar uma compilação em 64 bits, deve-se passar a opção <code>-m64</code> ao compilador GCC.</p>
+  </section>
+  </body>
+</html>

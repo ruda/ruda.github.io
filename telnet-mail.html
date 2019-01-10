@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="pt_BR">
+<head>
+  <title>Manipulando E-Mail Via Telnet</title>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Rudá Moura">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="css/site.css">     
+</head>
+<body>
+
+<section>
+
+<h1>Manipulando E-Mail Via Telnet</h1>
+
+<a name="intro"><h2>Introdução</h1></a>
+Este documento explica como usar o comando <code>telnet</code> para acessar e
+"conversar" com diversos protocolos relacionados ao envio e recebimento
+de e-mail (SMTP, POP3, IMAP4). Objetivo principal aqui é servir de ferramenta
+de teste. O protocolo SMTP é usado para o envio de e-mails e POP3/IMAP4
+são protocolos de recebimento.
+
+<a name="smtp"><h2>SMTP</h1>
+O protocolo SMTP (Simple Mail Transfer Protocol) é descrito na <a href="http://www.faqs.org/rfcs/rfc821.html"><a href="http://www.faqs.org/rfcs/rfc.html">RFC </a> 821</a>.
+
+<h2>Abrir Conexão</h2>
+Para abrir uma conexão, use o comando <code>telnet nome-do-host smtp</code> (SMTP é a porta 25).
+<pre>
+$ telnet localhost smtp
+<i>Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+220 dharma.haxent ESMTP Sendmail 8.12.10/8.12.10; Sat, 17 Jan 2004 14:24:45 -0200</i>
+</pre>
+Ok, o servidor que estou conectado roda o Sendmail. Em um outro...
+<pre>
+$ telnet nash smtp
+<i>Trying 192.168.200.101...
+Connected to nash.
+Escape character is '^]'.
+220 nash.haxent ESMTP Postfix (2.0.9)</i>
+</pre>
+este roda Postfix.
+
+<h2>Identificando-se</h2>
+Use o comando <code>HELO seu-host</code> para dizer ao servidor de onde estás conectado. Bom, isso é meio furado, qualquer lixo que se botar ai vai funcionar.
+<pre>
+HELO localhost
+<i>250 dharma.haxent Hello localhost.localdomain [127.0.0.1], pleased to meet you</i>
+</pre>
+
+<h2>Compor Mensagem</h2>
+Vejamos como compor uma mensagem para o <code>rruddaa@yahoo.com</code>. Eu sou o <code>ruda@haxent</code>, vou deixar um <code>Subject</code> mas é opcional. O texto deve ser passado em ASCII e use o ponto <code>.</code> sozinho em uma linha para indicar o fim da mensagem.
+<pre>
+MAIL FROM: ruda@localhost
+<i>250 2.1.0 ruda@localhost... Sender ok</i>
+RCPT TO: rruuddaa@yahoo.com
+<i>250 2.1.5 rruuddaa@yahoo.com... Recipient ok</i>
+DATA
+<i>354 Enter mail, end with "." on a line by itself</i>
+Subject: Testando 1,2,3
+Olah, como vai?
+.
+<i>250 2.0.0 i0HHjEHS009506 Message accepted for delivery</i>
+</pre>
+
+<h2>Desconectar-se</h2>
+Simplesmente digite <code>QUIT</code>.
+<pre>
+QUIT
+<i>221 2.0.0 dharma.haxent closing connection
+Connection closed by foreign host.</i>
+</pre>
+
+<a name="pop"><h2>POP3</h1></a>
+O protocolo POP3 (Post Office Protocol Version 3) é descrito na <a href="http://www.faqs.org/rfcs/rfc1939.html"><a href="http://www.faqs.org/rfcs/rfc.html">RFC </a> 1939</a>.
+
+<h2>Abrir Conexão</h2>
+Para abrir uma nova conexão, use o comando <code>telnet nome-do-host pop3</code> (POP3 é a porta 110).
+<pre>
+$ telnet nash pop3
+<i>Trying 192.168.200.101...
+Connected to nash.
+Escape character is '^]'.
++OK nash.haxent Cyrus POP3 v2.2.2-BETA-Invoca-RPM-2.2.2-2 server ready &lt;1925083136.1075043121@nash.haxent&gt;</i>
+</pre>
+Uma resposta positiva do servidor é indicada por <code>+OK</code> e uma resposta negativa é indicada por <code>-ERR</code>.
+
+<h2>Identificando-se</h2>
+Use o comando <code>USER nome</code> e em seguida <code>PASS senha</code>.
+<pre>
+USER ruda
+<i>+OK Name is a valid mailbox</i>
+PASS hackme
+<i>+OK Mailbox locked and ready</i>
+</pre>
+
+<h2>Descontectar-se</h2>
+Simplesmente digite <code>QUIT</code>.
+<pre>
+QUIT
+<i>+OK
+Connection closed by foreign host.</i>
+</pre>
+
+</section>
+
+<footer>
+© 1999-2004 Rudá Moura. Última atualização: Dom Out 31 21:10:58 BRT 2004
+</footer>
+
+  </body>
+</html>
+

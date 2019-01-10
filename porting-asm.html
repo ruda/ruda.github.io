@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Porting Linux Assembly Programs to macOS</title>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Rudá S.T. de Moura">
+    <meta name="description" content="This article is about the details, when you are porting Linux i386 assembly programs to macOS.">
+    <link rel="stylesheet" type="text/css" href="css/normalize.css">
+    <link rel="stylesheet" type="text/css" href="css/site.css">
+  </head>
+  <body>
+    <section>
+    <h1>Porting Linux Assembly Programs to macOS</h1>
+
+    <p>This article is about the details, when you are porting Linux i386 assembly programs to macOS i386 (not PowerPC or x86-64). I wrote this article by the time I was porting <a href="https://github.com/ruda/jonesforth-macintel">Jonesforth to MacIntel</a> in 2010, so it may not be much accurate today.</p>
+
+    <p>The macOS assembler is <strong>Mach-O Assembler</strong> and let us use <strong>Mach-O</strong> for short. The Linux assembler is <strong>GNU Assembler</strong> or <strong>Gas</strong> for short. The good news is that Mach-O is much compatible to Gas and they both use AT&amp;T syntax.</p>
+
+    <h2>Diferences between Mach-O and Gas</h2>
+
+    <h3>Data types</h3>
+
+    <p>Data types are identical to both assemblers with exception of <code>.int</code> type in Linux, that is <code>.long</code> in macOS.</p>
+
+    <h3>Labels</h3>
+
+    <p>Labels are declared in the same way for both assemblers, you can even use the forward/backwards (f/b) syntax. Here is an example from Jonesforth:</p>
+
+<pre>	jnz 2f
+	pop %eax
+	push %ebx		// push &lt;&gt; 0 on stack, indicating negative
+	dec %ecx
+	jnz 1f
+	pop %ebx		// error: string is only '-'.
+	movl $1,%ecx
+	ret
+
+	// Loop reading digits.
+1:	imull %edx,%eax		// %eax *= BASE
+	movb (%edi),%bl		// %bl = next character in string
+	inc %edi
+
+	// Convert 0-9, A-Z to a number 0-35.
+2:	subb $48,%bl		// &lt; '0'?
+</pre>
+
+<h3 id="macros">Macros</h3>
+
+<p>Macros are defined within <code>.macro</code> and <code>.endm</code> statements. The  macro definition bellow is interchangeable between Linux and Mac.</p>
+
+<pre>.macro NEXT
+	lodsl
+	jmp *(%eax)
+.endm
+</pre>
+
+<p>Linux has named arguments for macros and uses backslash to refer the named argument, like <code>\reg</code> or <code>\foo</code>.</p>
+
+<pre>.macro PUSHRSP reg
+	lea -4(%ebp),%ebp	// push reg on to return stack
+	movl \reg,(%ebp)
+.endm
+</pre>
+
+<p>Argument macros in macOS are numbers with prefix <code>$</code>. The first argument is <code>$0</code>, the second is <code>$1</code> and so on. The especial name <code>$n</code> gives the total number of arguments. Note that you do not declare the arguments, you just use it in the body.</p>
+
+<pre>.macro PUSHRSP
+	lea -4(%ebp),%ebp	// push reg on to return stack
+	movl $0,(%ebp)
+.endm
+</pre>
+
+<p>The Mach-O syntax <code>$0</code> <code>$1</code> is a bit annoying because they are also used as pure constants, outside macros definitions. Gas can accept default values for arguments, but you cannot do this with Mach-O assembler.</p>
+
+<h3 id="system-call">System Call</h3>
+
+<p>The system call (syscall for short) numbers are totally different between Linux and macOS, even worse, they may change in the whole life of an Operating System.</p>
+
+<p>Linux syscall is invoked with <code>int $0x80</code> instruction, all arguments goes into registers, then you set the register <code>EAX</code> with the number of the system call. At the end of syscall, the register EAX contains the return value.</p>
+
+<pre>	xor %ebx,%ebx	// 0
+	mov $1,%eax	// syscall: exit
+	int $0x80
+</pre>
+
+<p>macOS syscall is invoked with instruction <code>int $0x80</code> but, because of FreeBSD inheritance, the arguments are placed into the stack and the register EAX has the appropriate system call number. At the end of syscall, the register EAX contains the return value.</p>
+
+<pre>	push $0		// 0
+	mov $1,%eax	// syscall: exit
+	push %eax
+	int $0x80</pre>
+
+<p>The instruction <code>push %eax</code> above is just for <em>padding the stack</em>, because of <code>int $0x80</code> requirement. In practice, it is better to place <code>int $0x80</code> in this subroutine:</p>
+
+<pre>_syscall:
+	int $0x80
+	ret</pre>
+
+<p>And then call the routine like this example (exit 0):</p>
+
+<pre>	push $0		// 0
+	mov $1,%eax	// syscall: exit
+	call _syscall</pre>
+</pre>
+    </section>
+  </body>
+</html>
