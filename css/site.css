@@ -3,19 +3,20 @@
 /* Document */
 
 html {
-  background-color: Snow;
+  background-color: GoldenRod;
   line-height: 1.5; }
 
 body {
   background-color: White;
   color: Black;
   font-family: "Helvetica Neue", Verdana, Arial, Helvetica, sans-serif;
-  margin-top: 1em;
-  margin-bottom: 1em;
-  margin-left: auto;
-  margin-right: auto;
   width: 85%;
   height: 100%;
+  margin-top: 16px;
+  margin-bottom: 16px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1em;
   border-radius: 3px; }
 
 h1, h2, h3 { line-height: 1.15; color: inherit; }
@@ -25,7 +26,7 @@ h3 { font-size: 105%; }
 
 /* Grouping content */
 
-hr { border: 3px solid Snow; }
+hr { border: 1px solid LightGray; }
 
 code, kbd, pre, samp { font-family: "Courier", monospace; font-size:95%; }
 kbd {
@@ -68,7 +69,7 @@ header {
   border:1px solid IndianRed;
   border-radius:30px;
   font-family:Helvetica Neue, Verdana, Arial, Helvetica, sans-serif;
-  color:Snow;
+  color:GoldenRod;
   background:lightcoral; }
 
 section {
@@ -76,15 +77,16 @@ section {
   text-align:left; }
 
 footer {
-  background-color:Snow;
+  background-color:GoldenRod;
   padding-top:1em;
   font-family:Helvetica Neue, Verdana, Arial, Helvetica, sans-serif;
   text-align:center; }
 
-/* Other */
+/* YouTube Player */
 
 #ytplayer {
-  margin:1em;
+  margin:16px;
+  float:right;
   border:3px solid LightGray;
-  float:right; }
-@media screen and (max-width: 800px) { #ytplayer { display:none; } }
+  border-radius:3px; }
+@media screen and (max-width: 640px) { #ytplayer { display:none; } }
