@@ -1,0 +1,6 @@
+/*! squares.css | Copyright 2019 Rudá Moura. All rights reserved | The MIT License */
+
+/* Get rid of spaces at bottom in inline elements */
+img {
+  vertical-align: middle;
+} 
